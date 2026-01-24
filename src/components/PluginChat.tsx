@@ -46,6 +46,8 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
             }
 
             setIsInitialLoad(false);
+        }, (error) => {
+            console.error("Error fetching messages:", error);
         });
 
         return () => unsubscribe();

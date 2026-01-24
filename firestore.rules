@@ -66,6 +66,11 @@ service cloud.firestore {
         allow read: if isMember(pluginId);
         allow write: if isMember(pluginId) && isOwner(uid);
       }
+
+      // Messages subcollection (Chat)
+      match /messages/{messageId} {
+        allow read, write: if isMember(pluginId) || isCreator(pluginId);
+      }
     }
   }
 }
