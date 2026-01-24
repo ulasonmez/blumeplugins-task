@@ -198,6 +198,10 @@ export default function PluginDetailsPage() {
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
+    const totalTodos = todos.length;
+    const completedTodos = todos.filter(t => t.completed).length;
+    const progressPercentage = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+
     return (
         <div className="min-h-screen bg-[#1e1e24] text-white p-6 flex flex-col">
             {/* Header */}
@@ -206,7 +210,12 @@ export default function PluginDetailsPage() {
                     <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white">
                         <ArrowLeft className="w-6 h-6 mr-2" /> Back
                     </Button>
-                    <h1 className="text-3xl font-bold text-[#a8e6cf]">{plugin.name}</h1>
+                    <div className="flex items-baseline gap-3">
+                        <h1 className="text-3xl font-bold text-[#a8e6cf]">{plugin.name}</h1>
+                        <span className="text-lg font-medium text-slate-400">
+                            {progressPercentage}% Completed
+                        </span>
+                    </div>
                     <a
                         href={plugin.videoUrl}
                         target="_blank"
