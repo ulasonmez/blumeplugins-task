@@ -69,18 +69,24 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newMessage.trim()) return;
+        const messageToSend = newMessage.trim();
+
+        if (!messageToSend) return;
+
+        // Optimistic clear
+        setNewMessage("");
 
         try {
             await addDoc(collection(db, "plugins", pluginId, "messages"), {
-                text: newMessage.trim(),
+                text: messageToSend,
                 senderId: currentUserId,
                 senderName: currentUserName,
                 createdAt: serverTimestamp(),
             });
-            setNewMessage("");
         } catch (error) {
             console.error("Error sending message:", error);
+            // Optional: Restore message on error? For now, we just log.
+            // setNewMessage(messageToSend); 
         }
     };
 
