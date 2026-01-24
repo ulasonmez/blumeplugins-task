@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user is accessing their own document
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Helper: Check if user is a member of the plugin
+    function isMember(pluginId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/plugins/$(pluginId)/members/$(request.auth.uid));
+    }
+
+    // Helper: Check if user is an owner of the plugin (via members role)
+    function isPluginOwner(pluginId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/plugins/$(pluginId)/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/plugins/$(pluginId)/members/$(request.auth.uid)).data.role == "owner";
+    }
+
+    // Helper: Check if user is the creator of the plugin document (for initial setup)
+    function isCreator(pluginId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/plugins/$(pluginId)).data.createdByUid == request.auth.uid;
+    }
+
+    // Users collection: User can read/write only their own doc
+    // Allow reading other users' display names for adding members?
+    // We need to query users by displayName. So we need read access to users.
+    // Let's allow read for authenticated users, write for owner.
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(uid);
+    }
+
+    // Plugins collection
+    match /plugins/{pluginId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isCreator(pluginId) || isPluginOwner(pluginId));
+
+      // Members subcollection
+      match /members/{memberUid} {
+        // Any member can read the member list
+        allow read: if isMember(pluginId) || isCreator(pluginId); 
+        // Only owner (or creator during setup) can write/add members
+        allow write: if isPluginOwner(pluginId) || isCreator(pluginId);
+      }
+
+      // Todos subcollection
+      match /todos/{todoId} {
+        // Only members can read/write todos
+        allow read, write: if isMember(pluginId);
+      }
+
+      // Notes subcollection
+      match /notes/{uid} {
+        // Only members can read notes (or maybe just the owner of the note?)
+        // Requirement: "UI da sadece onları render eder" -> implies visibility control
+        // Let's say members can read, but only owner of note can write
+        allow read: if isMember(pluginId);
+        allow write: if isMember(pluginId) && isOwner(uid);
+      }
+    }
+  }
+}
