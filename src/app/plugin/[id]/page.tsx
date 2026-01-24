@@ -59,7 +59,7 @@ export default function PluginDetailsPage() {
         // Listen to members
         const membersQ = query(collection(db, "plugins", id as string, "members"));
         const unsubscribeMembers = onSnapshot(membersQ, async (snapshot) => {
-            const membersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+            const membersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as any));
             setMembers(membersData);
 
             // Check membership
