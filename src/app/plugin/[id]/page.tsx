@@ -229,80 +229,79 @@ export default function PluginDetailsPage() {
                         </span>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-                <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">
-                            <Users className="w-4 h-4 mr-2" />
-                            {members.length} Members
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-[#2b2b30] border-slate-600 text-white">
-                        <DialogHeader>
-                            <DialogTitle>Manage Members</DialogTitle>
-                        </DialogHeader>
+                <div className="flex items-center gap-2">
+                    <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">
+                                <Users className="w-4 h-4 mr-2" />
+                                {members.length} Members
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white">
+                            <DialogHeader>
+                                <DialogTitle>Manage Members</DialogTitle>
+                            </DialogHeader>
 
-                        <div className="space-y-6 mt-4">
-                            {/* Member List */}
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                                {members.map(member => (
-                                    <div key={member.uid} className="flex items-center justify-between p-2 bg-[#1e1e24] rounded border border-slate-700">
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-medium">{member.displayName}</span>
-                                            {member.role === 'owner' && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/50">Owner</Badge>}
+                            <div className="space-y-6 mt-4">
+                                {/* Member List */}
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                    {members.map(member => (
+                                        <div key={member.uid} className="flex items-center justify-between p-2 bg-[#1e1e24] rounded border border-slate-700">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium">{member.displayName}</span>
+                                                {member.role === 'owner' && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/50">Owner</Badge>}
+                                            </div>
+                                            {/* Future: Remove member button (if owner) */}
                                         </div>
-                                        {/* Future: Remove member button (if owner) */}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Add Member (Owner only) */}
-                            {isOwner && (
-                                <div className="space-y-3 pt-4 border-t border-slate-700">
-                                    <h4 className="text-sm font-medium text-slate-400">Add New Member</h4>
-                                    <form onSubmit={handleAddMember} className="flex gap-2">
-                                        <Input
-                                            placeholder="Enter username..."
-                                            value={newMemberName}
-                                            onChange={(e) => setNewMemberName(e.target.value)}
-                                            className="bg-[#1e1e24] border-slate-600"
-                                        />
-                                        <Button type="submit" className="bg-[#2d936c] hover:bg-[#237a58]" disabled={addingMember}>
-                                            {addingMember ? "Adding..." : <UserPlus className="w-4 h-4" />}
-                                        </Button>
-                                    </form>
-                                    {addMemberError && <p className="text-red-400 text-sm">{addMemberError}</p>}
+                                    ))}
                                 </div>
-                            )}
-                        </div>
-                    </DialogContent>
-                </Dialog>
+
+                                {/* Add Member (Owner only) */}
+                                {isOwner && (
+                                    <div className="space-y-3 pt-4 border-t border-slate-700">
+                                        <h4 className="text-sm font-medium text-slate-400">Add New Member</h4>
+                                        <form onSubmit={handleAddMember} className="flex gap-2">
+                                            <Input
+                                                placeholder="Enter username..."
+                                                value={newMemberName}
+                                                onChange={(e) => setNewMemberName(e.target.value)}
+                                                className="bg-[#1e1e24] border-slate-600"
+                                            />
+                                            <Button type="submit" className="bg-[#2d936c] hover:bg-[#237a58]" disabled={addingMember}>
+                                                {addingMember ? "Adding..." : <UserPlus className="w-4 h-4" />}
+                                            </Button>
+                                        </form>
+                                        {addMemberError && <p className="text-red-400 text-sm">{addMemberError}</p>}
+                                    </div>
+                                )}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
-        </div>
 
-            {/* Todos Sections - Grid */ }
-    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0">
-        {members.map(member => (
-            <UserTodoSection
-                key={member.uid}
+            {/* Todos Sections - Grid */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0">
+                {members.map(member => (
+                    <UserTodoSection
+                        key={member.uid}
+                        pluginId={plugin.id}
+                        userId={member.uid}
+                        userName={member.displayName}
+                        todos={memberTodos[member.uid] || []}
+                        currentUserId={user.uid}
+                        videoUrl={plugin.videoUrl}
+                    />
+                ))}
+            </div>
+
+            {/* Chat Widget */}
+            <PluginChat
                 pluginId={plugin.id}
-                userId={member.uid}
-                userName={member.displayName}
-                todos={memberTodos[member.uid] || []}
                 currentUserId={user.uid}
-                videoUrl={plugin.videoUrl}
+                currentUserName={user.displayName || "Anonymous"}
             />
-        ))}
-    </div>
-
-    {/* Chat Widget */ }
-    <PluginChat
-        pluginId={plugin.id}
-        currentUserId={user.uid}
-        currentUserName={user.displayName || "Anonymous"}
-    />
         </div >
     );
 }
