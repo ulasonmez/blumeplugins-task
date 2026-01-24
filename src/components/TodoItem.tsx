@@ -29,6 +29,18 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl }: TodoItemPr
     const handleToggle = async () => {
         if (!isOwner || toggling) return;
         setToggling(true);
+
+        // Play sound if we are marking as completed (current state is not completed)
+        if (!todo.completed) {
+            try {
+                const audio = new Audio("https://cdn.freesound.org/previews/571/571487_7384038-lq.mp3"); // Simple ding sound
+                audio.volume = 0.5;
+                audio.play().catch(e => console.error("Error playing sound:", e));
+            } catch (e) {
+                console.error("Audio error:", e);
+            }
+        }
+
         try {
             await updateDoc(doc(db, "plugins", pluginId, "todos", todo.id), {
                 completed: !todo.completed,
