@@ -20,11 +20,18 @@ interface UserTodoSectionProps {
     todos: any[];
     currentUserId: string;
     videoUrl: string;
+    className?: string;
 }
 
-export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, videoUrl }: UserTodoSectionProps) {
+export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, videoUrl, className }: UserTodoSectionProps) {
     const [newTodo, setNewTodo] = useState("");
     const [adding, setAdding] = useState(false);
+
+    // Todo Notes State
+    const [selectedTodo, setSelectedTodo] = useState<any>(null);
+    const [isTodoNotesOpen, setIsTodoNotesOpen] = useState(false);
+    const [todoNotes, setTodoNotes] = useState("");
+    const [savingTodoNotes, setSavingTodoNotes] = useState(false);
 
     const isCurrentUser = userId === currentUserId;
     const total = todos.length;
@@ -44,12 +51,36 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 completed: false,
                 createdAt: serverTimestamp(),
                 completedAt: null,
+                notes: "",
             });
             setNewTodo("");
         } catch (error) {
             console.error("Error adding todo:", error);
         } finally {
             setAdding(false);
+        }
+    };
+
+    const handleOpenTodoNotes = (todo: any) => {
+        setSelectedTodo(todo);
+        setTodoNotes(todo.notes || "");
+        setIsTodoNotesOpen(true);
+    };
+
+    const handleSaveTodoNotes = async () => {
+        if (!selectedTodo || !isCurrentUser) return;
+        setSavingTodoNotes(true);
+        try {
+            const { doc, updateDoc } = await import("firebase/firestore");
+            await updateDoc(doc(db, "plugins", pluginId, "todos", selectedTodo.id), {
+                notes: todoNotes,
+            });
+            setIsTodoNotesOpen(false);
+            setSelectedTodo(null);
+        } catch (error) {
+            console.error("Error saving todo notes:", error);
+        } finally {
+            setSavingTodoNotes(false);
         }
     };
 
@@ -91,7 +122,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     };
 
     return (
-        <div className="bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col h-full shadow-lg">
+        <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col h-full shadow-lg", className)}>
             <div className="p-4 flex items-center justify-between border-b border-slate-600 bg-[#2b2b30]">
                 <div className="flex items-center gap-3">
                     <h4 className="font-bold text-xl text-white">{userName}</h4>
@@ -139,6 +170,39 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </DialogContent>
             </Dialog>
 
+            {/* Todo Item Notes Dialog */}
+            <Dialog open={isTodoNotesOpen} onOpenChange={setIsTodoNotesOpen}>
+                <DialogContent className="w-full max-w-md bg-[#2b2b30] border-slate-600 text-white">
+                    <DialogHeader>
+                        <DialogTitle>Task Notes</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <Textarea
+                            value={todoNotes}
+                            onChange={(e) => setTodoNotes(e.target.value)}
+                            placeholder="Add notes for this task..."
+                            className="bg-[#1e1e24] border-slate-600 text-white min-h-[150px]"
+                        />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsTodoNotesOpen(false)}
+                            className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveTodoNotes}
+                            disabled={savingTodoNotes}
+                            className="bg-[#2d936c] hover:bg-[#237a58] text-white"
+                        >
+                            {savingTodoNotes ? "Saving..." : "Save"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-[#1e1e24]/30">
                 <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 
@@ -150,6 +214,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                             todo={todo}
                             currentUserId={currentUserId}
                             videoUrl={videoUrl}
+                            onOpenNotes={handleOpenTodoNotes}
                         />
                     ))}
                     {todos.length === 0 && (

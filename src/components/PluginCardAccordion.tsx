@@ -111,6 +111,7 @@ export function PluginCardAccordion({ plugin, currentUser }: PluginCardAccordion
                                 todos={userGroups[uid]}
                                 currentUserId={currentUser.uid}
                                 videoUrl={plugin.videoUrl}
+                                className="h-[400px]"
                             />
                         ))}
                     </div>

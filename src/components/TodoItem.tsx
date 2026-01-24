@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, StickyNote } from "lucide-react";
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
@@ -16,12 +16,14 @@ interface TodoItemProps {
         completed: boolean;
         completedAt?: any; // Using any to handle both Firestore Timestamp and Date
         createdByUid: string;
+        notes?: string;
     };
     currentUserId: string;
     videoUrl: string;
+    onOpenNotes: (todo: any) => void;
 }
 
-export function TodoItem({ pluginId, todo, currentUserId, videoUrl }: TodoItemProps) {
+export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes }: TodoItemProps) {
     const isOwner = todo.createdByUid === currentUserId;
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -134,15 +136,25 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl }: TodoItemPr
             )}
 
             {isOwner && (
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                >
-                    <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-blue-400"
+                        onClick={() => onOpenNotes(todo)}
+                    >
+                        <StickyNote className={cn("w-4 h-4", todo.notes ? "fill-current text-blue-400" : "")} />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-500"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </Button>
+                </div>
             )}
         </div>
     );
