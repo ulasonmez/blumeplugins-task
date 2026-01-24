@@ -91,62 +91,78 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1e24] border-l border-slate-700 w-80 shrink-0">
-            {/* Header */}
-            <div className="bg-[#2d936c] text-white p-3 shadow-md flex items-center gap-2 shrink-0">
-                <MessageCircle className="w-5 h-5" />
-                <span className="font-bold">Chat</span>
-            </div>
-
-            {/* Messages Area */}
+        <div className={cn("fixed bottom-4 right-4 z-50 flex flex-col items-end transition-all duration-300", isOpen ? "w-80" : "w-auto")}>
+            {/* Header / Toggle Button */}
             <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
+                onClick={() => setIsOpen(!isOpen)}
+                className="bg-[#2d936c] hover:bg-[#237a58] text-white p-3 rounded-t-lg shadow-lg cursor-pointer flex items-center justify-between w-full transition-colors"
             >
-                {messages.length === 0 && (
-                    <p className="text-center text-slate-500 text-sm mt-10">No messages yet. Say hi!</p>
-                )}
-
-                {messages.map((msg) => {
-                    const isMe = msg.senderId === currentUserId;
-                    return (
-                        <div key={msg.id} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
-                            <div className="flex items-baseline gap-2 mb-1">
-                                <span className="text-xs text-slate-400 font-medium">{msg.senderName}</span>
-                                <span className="text-[10px] text-slate-600">{formatTime(msg.createdAt)}</span>
-                            </div>
-                            <div
-                                className={cn(
-                                    "px-3 py-2 rounded-lg text-sm max-w-[90%] break-words",
-                                    isMe
-                                        ? "bg-[#2d936c] text-white rounded-tr-none"
-                                        : "bg-[#2b2b30] text-slate-200 border border-slate-600 rounded-tl-none"
-                                )}
-                            >
-                                {msg.text}
-                            </div>
-                        </div>
-                    );
-                })}
+                <div className="flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5" />
+                    <span className="font-bold">Chat</span>
+                    {!isOpen && unreadCount > 0 && (
+                        <span className="bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ml-1 animate-pulse">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                    )}
+                </div>
+                {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
             </div>
 
-            {/* Input Area */}
-            <form onSubmit={handleSendMessage} className="p-3 bg-[#2b2b30] border-t border-slate-600 flex gap-2 shrink-0">
-                <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
-                    className="bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 text-sm focus-visible:ring-[#2d936c]"
-                />
-                <Button
-                    type="submit"
-                    size="icon"
-                    disabled={!newMessage.trim()}
-                    className="bg-[#2d936c] hover:bg-[#237a58] text-white shrink-0"
-                >
-                    <Send className="w-4 h-4" />
-                </Button>
-            </form>
+            {/* Chat Body */}
+            {isOpen && (
+                <div className="w-full h-96 bg-[#1e1e24] border-x border-b border-slate-600 shadow-2xl flex flex-col rounded-b-lg">
+                    {/* Messages Area */}
+                    <div
+                        ref={scrollRef}
+                        className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent"
+                    >
+                        {messages.length === 0 && (
+                            <p className="text-center text-slate-500 text-sm mt-10">No messages yet. Say hi!</p>
+                        )}
+
+                        {messages.map((msg) => {
+                            const isMe = msg.senderId === currentUserId;
+                            return (
+                                <div key={msg.id} className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
+                                    <div className="flex items-baseline gap-2 mb-1">
+                                        <span className="text-xs text-slate-400 font-medium">{msg.senderName}</span>
+                                        <span className="text-[10px] text-slate-600">{formatTime(msg.createdAt)}</span>
+                                    </div>
+                                    <div
+                                        className={cn(
+                                            "px-3 py-2 rounded-lg text-sm max-w-[85%] break-words",
+                                            isMe
+                                                ? "bg-[#2d936c] text-white rounded-tr-none"
+                                                : "bg-[#2b2b30] text-slate-200 border border-slate-600 rounded-tl-none"
+                                        )}
+                                    >
+                                        {msg.text}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Input Area */}
+                    <form onSubmit={handleSendMessage} className="p-3 bg-[#2b2b30] border-t border-slate-600 flex gap-2">
+                        <Input
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            placeholder="Type a message..."
+                            className="bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 text-sm focus-visible:ring-[#2d936c]"
+                        />
+                        <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!newMessage.trim()}
+                            className="bg-[#2d936c] hover:bg-[#237a58] text-white shrink-0"
+                        >
+                            <Send className="w-4 h-4" />
+                        </Button>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }
