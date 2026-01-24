@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { PluginChat } from "@/components/PluginChat";
 
 export default function PluginDetailsPage() {
     const { id } = useParams();
@@ -281,6 +282,13 @@ export default function PluginDetailsPage() {
                     />
                 ))}
             </div>
+
+            {/* Chat Widget */}
+            <PluginChat
+                pluginId={plugin.id}
+                currentUserId={user.uid}
+                currentUserName={user.displayName || "Anonymous"}
+            />
         </div>
     );
 }

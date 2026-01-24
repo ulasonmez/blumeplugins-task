@@ -14,6 +14,7 @@ interface TodoItemProps {
         id: string;
         text: string;
         completed: boolean;
+        completedAt?: any; // Using any to handle both Firestore Timestamp and Date
         createdByUid: string;
     };
     currentUserId: string;
@@ -111,6 +112,26 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl }: TodoItemPr
             <span className={cn("flex-1 text-base font-medium text-slate-200", todo.completed && "line-through text-slate-500")}>
                 {renderText(todo.text)}
             </span>
+
+            {todo.completed && todo.completedAt && (
+                <span className="text-xs text-slate-500 whitespace-nowrap ml-2">
+                    {(() => {
+                        try {
+                            // Handle Firestore Timestamp
+                            const date = todo.completedAt.toDate ? todo.completedAt.toDate() : new Date(todo.completedAt);
+                            return new Intl.DateTimeFormat('tr-TR', {
+                                day: 'numeric',
+                                month: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }).format(date);
+                        } catch (e) {
+                            return "";
+                        }
+                    })()}
+                </span>
+            )}
 
             {isOwner && (
                 <Button
