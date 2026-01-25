@@ -22,6 +22,18 @@ export default function Home() {
   const [newPluginVideo, setNewPluginVideo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [plugins, setPlugins] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const filteredPlugins = plugins.filter(plugin =>
+    plugin.name.toLowerCase().includes(debouncedQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -104,8 +116,6 @@ export default function Home() {
           </Button>
         </div>
 
-
-
         {/* Filters Removed */}
       </header>
 
@@ -113,12 +123,14 @@ export default function Home() {
         {/* Stats and Search */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-700 pb-4">
           <h2 className="text-xl text-slate-300 font-medium">
-            {plugins.length} Plugins
+            {filteredPlugins.length} Plugins
           </h2>
 
           <div className="flex items-center gap-4 w-full md:w-auto">
             <Input
-              placeholder="Search"
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-[#2b2b30] border-slate-600 text-white placeholder:text-slate-500 w-full md:w-64"
             />
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -165,7 +177,7 @@ export default function Home() {
           </div>
         </div>
 
-        <PluginList currentUser={user} plugins={plugins} />
+        <PluginList currentUser={user} plugins={filteredPlugins} />
       </main>
     </div>
   );
