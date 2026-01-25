@@ -204,7 +204,7 @@ export default function PluginDetailsPage() {
     const progressPercentage = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
 
     return (
-        <div className="min-h-screen bg-[#1e1e24] text-white p-6 flex flex-col">
+        <div className="h-screen overflow-hidden bg-[#1e1e24] text-white p-6 flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between mb-6 shrink-0">
                 <div className="flex items-center gap-4">
@@ -282,7 +282,7 @@ export default function PluginDetailsPage() {
             </div>
 
             {/* Todos Sections - Grid */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-[600px]">
                 {members.map(member => (
                     <UserTodoSection
                         key={member.uid}

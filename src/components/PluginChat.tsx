@@ -28,7 +28,17 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
     const [newMessage, setNewMessage] = useState("");
     const [unreadCount, setUnreadCount] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    // Refs for state accessed inside closure
+    const isOpenRef = useRef(isOpen);
+    const isInitialLoadRef = useRef(true);
+
+    useEffect(() => {
+        isOpenRef.current = isOpen;
+        if (isOpen) {
+            setUnreadCount(0);
+        }
+    }, [isOpen]);
 
     useEffect(() => {
         const q = query(collection(db, "plugins", pluginId, "messages"), orderBy("createdAt", "asc"));
@@ -37,21 +47,25 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
             const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
             setMessages(msgs);
 
-            // Handle unread count
-            if (!isOpen && !isInitialLoad) {
-                // If closed and not initial load, increment unread for new messages
-                // Simple logic: if length increased, assume new messages
-                // A better way would be to compare IDs, but this is a simple start
-                setUnreadCount(prev => prev + (snapshot.docChanges().filter(c => c.type === 'added').length));
+            if (isInitialLoadRef.current) {
+                isInitialLoadRef.current = false;
+                return;
             }
 
-            setIsInitialLoad(false);
+            // Handle unread count
+            if (!isOpenRef.current) {
+                // If closed, increment unread for new messages
+                const newMessagesCount = snapshot.docChanges().filter(c => c.type === 'added').length;
+                if (newMessagesCount > 0) {
+                    setUnreadCount(prev => prev + newMessagesCount);
+                }
+            }
         }, (error) => {
             console.error("Error fetching messages:", error);
         });
 
         return () => unsubscribe();
-    }, [pluginId, isOpen, isInitialLoad]);
+    }, [pluginId]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -59,13 +73,6 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen]);
-
-    // Reset unread when opened
-    useEffect(() => {
-        if (isOpen) {
-            setUnreadCount(0);
-        }
-    }, [isOpen]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
