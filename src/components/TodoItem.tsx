@@ -191,7 +191,20 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                 </span>
             )}
 
-            <div className={cn("flex gap-1 transition-opacity", isOwner ? "opacity-0 group-hover:opacity-100" : "opacity-100")}>
+            <div className="flex gap-1">
+                {isOwner && (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-yellow-400"
+                        onClick={() => {
+                            setIsEditing(true);
+                            setEditText(todo.text);
+                        }}
+                    >
+                        <Pencil className="w-4 h-4" />
+                    </Button>
+                )}
                 <Button
                     variant="ghost"
                     size="icon"
