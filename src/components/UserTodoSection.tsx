@@ -174,14 +174,15 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
             <Dialog open={isTodoNotesOpen} onOpenChange={setIsTodoNotesOpen}>
                 <DialogContent className="w-full max-w-md bg-[#2b2b30] border-slate-600 text-white">
                     <DialogHeader>
-                        <DialogTitle>Task Notes</DialogTitle>
+                        <DialogTitle>{isCurrentUser ? "Task Notes" : "View Task Notes"}</DialogTitle>
                     </DialogHeader>
                     <div className="py-2">
                         <Textarea
                             value={todoNotes}
                             onChange={(e) => setTodoNotes(e.target.value)}
-                            placeholder="Add notes for this task..."
+                            placeholder={isCurrentUser ? "Add notes for this task..." : "No notes available."}
                             className="bg-[#1e1e24] border-slate-600 text-white min-h-[150px]"
+                            disabled={!isCurrentUser}
                         />
                     </div>
                     <div className="flex justify-end gap-2">
@@ -190,15 +191,17 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                             onClick={() => setIsTodoNotesOpen(false)}
                             className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
                         >
-                            Cancel
+                            {isCurrentUser ? "Cancel" : "Close"}
                         </Button>
-                        <Button
-                            onClick={handleSaveTodoNotes}
-                            disabled={savingTodoNotes}
-                            className="bg-[#2d936c] hover:bg-[#237a58] text-white"
-                        >
-                            {savingTodoNotes ? "Saving..." : "Save"}
-                        </Button>
+                        {isCurrentUser && (
+                            <Button
+                                onClick={handleSaveTodoNotes}
+                                disabled={savingTodoNotes}
+                                className="bg-[#2d936c] hover:bg-[#237a58] text-white"
+                            >
+                                {savingTodoNotes ? "Saving..." : "Save"}
+                            </Button>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

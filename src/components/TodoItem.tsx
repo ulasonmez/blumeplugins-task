@@ -28,6 +28,11 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    // Edit state
+    const [isEditing, setIsEditing] = useState(false);
+    const [editText, setEditText] = useState(todo.text);
+    const [savingEdit, setSavingEdit] = useState(false);
+
     const handleToggle = async () => {
         if (!isOwner || toggling) return;
         setToggling(true);
@@ -53,6 +58,30 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
             console.error("Error deleting todo:", error);
         } finally {
             setDeleting(false);
+        }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editText.trim() || savingEdit) return;
+        setSavingEdit(true);
+        try {
+            await updateDoc(doc(db, "plugins", pluginId, "todos", todo.id), {
+                text: editText.trim()
+            });
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Error update todo text:", error);
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            handleSaveEdit();
+        } else if (e.key === "Escape") {
+            setIsEditing(false);
+            setEditText(todo.text);
         }
     };
 
@@ -111,9 +140,36 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                 className={cn("border-slate-500 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
             />
 
-            <span className={cn("flex-1 text-base font-medium text-slate-200", todo.completed && "line-through text-slate-500")}>
-                {renderText(todo.text)}
-            </span>
+            <div className="flex-1 min-w-0">
+                {isEditing ? (
+                    <div className="flex items-center gap-2">
+                        <input
+                            autoFocus
+                            type="text"
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            onBlur={() => {
+                                // Optional: save on blur or just cancel? Let's save on blur for better UX
+                                handleSaveEdit();
+                            }}
+                            className="flex-1 bg-[#1e1e24] text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                        />
+                    </div>
+                ) : (
+                    <span
+                        className={cn("block text-base font-medium text-slate-200 break-words", todo.completed && "line-through text-slate-500")}
+                        onDoubleClick={() => {
+                            if (isOwner) {
+                                setIsEditing(true);
+                                setEditText(todo.text);
+                            }
+                        }}
+                    >
+                        {renderText(todo.text)}
+                    </span>
+                )}
+            </div>
 
             {todo.completed && todo.completedAt && (
                 <span className="text-xs text-slate-500 whitespace-nowrap ml-2">
@@ -135,16 +191,17 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                 </span>
             )}
 
-            {isOwner && (
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-blue-400"
-                        onClick={() => onOpenNotes(todo)}
-                    >
-                        <StickyNote className={cn("w-4 h-4", todo.notes ? "fill-current text-blue-400" : "")} />
-                    </Button>
+            <div className={cn("flex gap-1 transition-opacity", isOwner ? "opacity-0 group-hover:opacity-100" : "opacity-100")}>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-400 hover:text-blue-400"
+                    onClick={() => onOpenNotes(todo)}
+                >
+                    <StickyNote className={cn("w-4 h-4", todo.notes ? "fill-current text-blue-400" : "")} />
+                </Button>
+
+                {isOwner && (
                     <Button
                         variant="ghost"
                         size="icon"
@@ -154,8 +211,8 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                     >
                         <Trash2 className="w-4 h-4" />
                     </Button>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 }
