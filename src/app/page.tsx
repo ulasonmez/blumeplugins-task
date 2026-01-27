@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { addDoc, collection, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Plus, LogOut } from "lucide-react";
 
+import { SharedNotepad } from "@/components/SharedNotepad";
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -110,6 +112,7 @@ export default function Home() {
 
         {/* User Profile - Top Right */}
         <div className="absolute top-8 right-8 flex items-center gap-4">
+          <SharedNotepad />
           <span className="text-2xl font-bold text-white">{user.displayName}</span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
             <LogOut className="w-6 h-6" />

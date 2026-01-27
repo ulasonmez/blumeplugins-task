@@ -72,5 +72,10 @@ service cloud.firestore {
         allow read, write: if isMember(pluginId) || isCreator(pluginId);
       }
     }
+
+    // System collection for shared features
+    match /system/shared_notepad {
+      allow read, write: if isAuthenticated();
+    }
   }
 }
