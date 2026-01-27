@@ -224,41 +224,41 @@ export default function PluginDetailsPage() {
         : 0;
 
     return (
-        <div className="h-screen overflow-hidden bg-[#1e1e24] text-white p-6 flex flex-col">
+        <div className="h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 shrink-0">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white">
-                        <ArrowLeft className="w-6 h-6 mr-2" /> Back
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 shrink-0 gap-4 md:gap-0">
+                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white p-0 md:p-4">
+                        <ArrowLeft className="w-6 h-6 mr-2" /> <span className="hidden md:inline">Back</span>
                     </Button>
-                    <h1 className="text-3xl font-bold text-[#a8e6cf]">{plugin.name}</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-[#a8e6cf] truncate max-w-[200px] md:max-w-none">{plugin.name}</h1>
                     <a
                         href={plugin.videoUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-slate-400 hover:text-[#2d936c]"
                     >
-                        <ExternalLink className="w-6 h-6" />
+                        <ExternalLink className="w-5 h-5 md:w-6 md:h-6" />
                     </a>
 
                     {/* Progress Bar */}
-                    <div className="flex items-center gap-3 ml-2">
-                        <Progress value={progressPercentage} className="w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
-                        <span className="text-sm font-medium text-slate-400 whitespace-nowrap">
-                            {progressPercentage}% Completed
+                    <div className="flex items-center gap-3 ml-auto md:ml-2 w-full md:w-auto mt-2 md:mt-0">
+                        <Progress value={progressPercentage} className="w-full md:w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
+                        <span className="text-xs md:text-sm font-medium text-slate-400 whitespace-nowrap">
+                            {progressPercentage}%
                         </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
                     <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">
+                            <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 w-full md:w-auto">
                                 <Users className="w-4 h-4 mr-2" />
                                 {members.length} Members
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white">
+                        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
                             <DialogHeader>
                                 <DialogTitle>Manage Members</DialogTitle>
                             </DialogHeader>
@@ -286,7 +286,7 @@ export default function PluginDetailsPage() {
                                                 placeholder="Enter username..."
                                                 value={newMemberName}
                                                 onChange={(e) => setNewMemberName(e.target.value)}
-                                                className="bg-[#1e1e24] border-slate-600"
+                                                className="bg-[#1e1e24] border-slate-600 text-base"
                                             />
                                             <Button type="submit" className="bg-[#2d936c] hover:bg-[#237a58]" disabled={addingMember}>
                                                 {addingMember ? "Adding..." : <UserPlus className="w-4 h-4" />}
@@ -302,7 +302,7 @@ export default function PluginDetailsPage() {
             </div>
 
             {/* Todos Sections - Grid */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-[600px]">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-auto md:auto-rows-[600px] pb-20 md:pb-0">
                 {members.map(member => (
                     <UserTodoSection
                         key={member.uid}

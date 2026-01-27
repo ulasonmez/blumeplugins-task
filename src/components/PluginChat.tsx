@@ -104,7 +104,7 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
     };
 
     return (
-        <div className={cn("fixed bottom-4 right-4 z-50 flex flex-col items-end transition-all duration-300", isOpen ? "w-80" : "w-auto")}>
+        <div className={cn("fixed bottom-4 right-2 md:right-4 z-50 flex flex-col items-end transition-all duration-300 max-w-[calc(100vw-1rem)]", isOpen ? "w-[92vw] md:w-80" : "w-auto")}>
             {/* Header / Toggle Button */}
             <div
                 onClick={() => setIsOpen(!isOpen)}
