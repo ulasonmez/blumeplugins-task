@@ -199,9 +199,29 @@ export default function PluginDetailsPage() {
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
-    const totalTodos = todos.length;
-    const completedTodos = todos.filter(t => t.completed).length;
-    const progressPercentage = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+    // Calculate progress based on members
+    // Each member contributes equally to the total progress (100% / members.length)
+    let totalProgressSum = 0;
+    const activeMembersCount = members.length;
+
+    if (activeMembersCount > 0) {
+        members.forEach(member => {
+            const memberTodosList = memberTodos[member.uid] || [];
+            const memberTotal = memberTodosList.length;
+            const memberCompleted = memberTodosList.filter(t => t.completed).length;
+
+            if (memberTotal > 0) {
+                totalProgressSum += (memberCompleted / memberTotal);
+            } else {
+                // If a member has no todos, they contribute 0 to the progress
+                totalProgressSum += 0;
+            }
+        });
+    }
+
+    const progressPercentage = activeMembersCount > 0
+        ? Math.round((totalProgressSum / activeMembersCount) * 100)
+        : 0;
 
     return (
         <div className="h-screen overflow-hidden bg-[#1e1e24] text-white p-6 flex flex-col">
