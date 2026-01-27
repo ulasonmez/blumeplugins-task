@@ -24,6 +24,7 @@ interface PluginCardProps {
 export function PluginCard({ plugin, currentUser }: PluginCardProps) {
     const router = useRouter();
     const [todos, setTodos] = useState<any[]>([]);
+    const [members, setMembers] = useState<any[]>([]);
 
     // Extract YouTube ID
     const getYouTubeId = (url: string) => {
@@ -46,26 +47,48 @@ export function PluginCard({ plugin, currentUser }: PluginCardProps) {
         return () => unsubscribe();
     }, [plugin.id]);
 
-    const userGroups: Record<string, any[]> = {};
-    userGroups[currentUser.uid] = [];
+    useEffect(() => {
+        const membersQ = query(collection(db, "plugins", plugin.id, "members"));
+        const unsubscribe = onSnapshot(membersQ, (snapshot) => {
+            const membersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+            setMembers(membersData);
+        });
+        return () => unsubscribe();
+    }, [plugin.id]);
 
-    todos.forEach(todo => {
-        if (!userGroups[todo.createdByUid]) {
-            userGroups[todo.createdByUid] = [];
-        }
-        userGroups[todo.createdByUid].push(todo);
+    const memberTodos: Record<string, any[]> = {};
+    members.forEach(m => {
+        memberTodos[m.uid] = [];
     });
 
-    const getUserName = (uid: string) => {
-        if (uid === currentUser.uid) return currentUser.displayName || "Me";
-        const todo = todos.find(t => t.createdByUid === uid);
-        return todo ? todo.createdByName : "Unknown User";
-    };
+    todos.forEach(todo => {
+        if (memberTodos[todo.createdByUid]) {
+            memberTodos[todo.createdByUid].push(todo);
+        }
+    });
+
+    let totalProgressSum = 0;
+    const activeMembersCount = members.length;
+
+    if (activeMembersCount > 0) {
+        members.forEach(member => {
+            const memberTodosList = memberTodos[member.uid] || [];
+            const memberTotal = memberTodosList.length;
+            const memberCompleted = memberTodosList.filter(t => t.completed).length;
+
+            if (memberTotal > 0) {
+                totalProgressSum += (memberCompleted / memberTotal);
+            }
+        });
+    }
+
+    const progress = activeMembersCount > 0
+        ? Math.round((totalProgressSum / activeMembersCount) * 100)
+        : 0;
 
     const total = todos.length;
-    const completed = todos.filter(t => t.completed).length;
-    const isCompleted = total > 0 && total === completed;
-    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+    // isCompleted is true if progress is 100%
+    const isCompleted = total > 0 && progress === 100;
 
     return (
         <div
