@@ -206,7 +206,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </DialogContent>
             </Dialog>
 
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-[#1e1e24]/30">
+            <div className="flex-1 p-2 md:p-4 space-y-4 overflow-y-auto bg-[#1e1e24]/30">
                 <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 
                 <div className="space-y-1">

@@ -103,17 +103,17 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#1e1e24] text-white font-sans">
+    <div className="min-h-screen bg-[#1e1e24] text-white font-sans overflow-x-hidden">
       {/* Header */}
-      <header className="py-8 px-4 flex flex-col items-center gap-6">
-        <h1 className="text-5xl font-minecraft text-[#a8e6cf] tracking-wider drop-shadow-md">
+      <header className="py-8 px-4 flex flex-col items-center gap-6 relative">
+        <h1 className="text-5xl font-minecraft text-[#a8e6cf] tracking-wider drop-shadow-md text-center">
           Blume Plugins
         </h1>
 
-        {/* User Profile - Top Right */}
-        <div className="absolute top-8 right-8 flex items-center gap-4">
+        {/* User Profile - Responsive */}
+        <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
           <SharedNotepad />
-          <span className="text-2xl font-bold text-white">{user.displayName}</span>
+          <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
             <LogOut className="w-6 h-6" />
           </Button>
@@ -122,27 +122,27 @@ export default function Home() {
         {/* Filters Removed */}
       </header>
 
-      <main className="max-w-7xl mx-auto p-6 space-y-6">
+      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         {/* Stats and Search */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-slate-700 pb-4">
-          <h2 className="text-xl text-slate-300 font-medium">
+          <h2 className="text-xl text-slate-300 font-medium w-full md:w-auto text-center md:text-left">
             {filteredPlugins.length} Plugins
           </h2>
 
-          <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
             <Input
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-[#2b2b30] border-slate-600 text-white placeholder:text-slate-500 w-full md:w-64"
+              className="bg-[#2b2b30] border-slate-600 text-white placeholder:text-slate-500 w-full md:w-64 text-base"
             />
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-[#2d936c] hover:bg-[#237a58] text-white">
+                <Button className="bg-[#2d936c] hover:bg-[#237a58] text-white w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" /> Add
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-[#2b2b30] border-slate-600 text-white">
+              <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
                 <DialogHeader>
                   <DialogTitle>Add New Plugin</DialogTitle>
                 </DialogHeader>
@@ -154,7 +154,7 @@ export default function Home() {
                       value={newPluginName}
                       onChange={(e) => setNewPluginName(e.target.value)}
                       required
-                      className="bg-[#1e1e24] border-slate-600"
+                      className="bg-[#1e1e24] border-slate-600 text-base"
                     />
                   </div>
                   <div className="space-y-2">
@@ -165,7 +165,7 @@ export default function Home() {
                       onChange={(e) => setNewPluginVideo(e.target.value)}
                       placeholder="https://youtube.com/..."
                       required
-                      className="bg-[#1e1e24] border-slate-600"
+                      className="bg-[#1e1e24] border-slate-600 text-base"
                     />
                   </div>
                   <Button type="submit" className="w-full bg-[#2d936c] hover:bg-[#237a58]" disabled={submitting}>

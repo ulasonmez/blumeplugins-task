@@ -132,15 +132,15 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
     };
 
     return (
-        <div className={cn("flex items-center gap-3 p-3 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group mb-2 border border-transparent hover:border-slate-600", todo.completed && "opacity-60 bg-[#25252b]")}>
+        <div className={cn("flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", todo.completed && "bg-black/20")}>
             <Checkbox
                 checked={todo.completed}
                 onCheckedChange={handleToggle}
                 disabled={!isOwner || toggling}
-                className={cn("border-slate-500 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
+                className={cn("h-4 w-4 md:h-5 md:w-5 border-slate-400 bg-slate-800/50 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
             />
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 w-full">
                 {isEditing ? (
                     <div className="flex items-center gap-2">
                         <input
@@ -150,15 +150,14 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                             onChange={(e) => setEditText(e.target.value)}
                             onKeyDown={handleKeyDown}
                             onBlur={() => {
-                                // Optional: save on blur or just cancel? Let's save on blur for better UX
                                 handleSaveEdit();
                             }}
-                            className="flex-1 bg-[#1e1e24] text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                            className="flex-1 bg-[#1e1e24] text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 w-full"
                         />
                     </div>
                 ) : (
                     <span
-                        className={cn("block text-base font-medium text-slate-200 break-words", todo.completed && "line-through text-slate-500")}
+                        className={cn("text-sm md:text-base font-medium text-slate-200 break-words whitespace-normal leading-tight", todo.completed && "line-through text-slate-500")}
                         onDoubleClick={() => {
                             if (isOwner) {
                                 setIsEditing(true);
@@ -172,15 +171,13 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
             </div>
 
             {todo.completed && todo.completedAt && (
-                <span className="text-xs text-slate-500 whitespace-nowrap ml-2">
+                <span className="text-[10px] text-slate-500 whitespace-nowrap ml-1 shrink-0">
                     {(() => {
                         try {
-                            // Handle Firestore Timestamp
                             const date = todo.completedAt.toDate ? todo.completedAt.toDate() : new Date(todo.completedAt);
                             return new Intl.DateTimeFormat('tr-TR', {
                                 day: 'numeric',
                                 month: 'numeric',
-                                year: 'numeric',
                                 hour: '2-digit',
                                 minute: '2-digit'
                             }).format(date);
@@ -191,38 +188,38 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                 </span>
             )}
 
-            <div className="flex gap-1">
+            <div className="flex gap-1 shrink-0">
                 {isOwner && (
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-yellow-400"
+                        className="h-7 w-7 md:h-8 md:w-8 text-slate-400 hover:text-yellow-400"
                         onClick={() => {
                             setIsEditing(true);
                             setEditText(todo.text);
                         }}
                     >
-                        <Pencil className="w-4 h-4" />
+                        <Pencil className="w-3 h-3 md:w-4 md:h-4" />
                     </Button>
                 )}
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-slate-400 hover:text-blue-400"
+                    className="h-7 w-7 md:h-8 md:w-8 text-slate-400 hover:text-blue-400"
                     onClick={() => onOpenNotes(todo)}
                 >
-                    <StickyNote className={cn("w-4 h-4", todo.notes ? "fill-current text-blue-400" : "")} />
+                    <StickyNote className={cn("w-3 h-3 md:w-4 md:h-4", todo.notes ? "fill-current text-blue-400" : "")} />
                 </Button>
 
                 {isOwner && (
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-500"
+                        className="h-7 w-7 md:h-8 md:w-8 text-slate-400 hover:text-red-500"
                         onClick={handleDelete}
                         disabled={deleting}
                     >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
                     </Button>
                 )}
             </div>
