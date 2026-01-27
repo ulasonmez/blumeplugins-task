@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PluginChat } from "@/components/PluginChat";
 import { Progress } from "@/components/ui/progress";
+import { PluginFileHandler } from "@/components/PluginFileHandler";
 
 export default function PluginDetailsPage() {
     const { id } = useParams();
@@ -83,25 +84,26 @@ export default function PluginDetailsPage() {
             setLoading(false);
         });
 
-        // Listen to todos (only if member, but we can listen anyway and filter in UI or let rules fail)
-        // Ideally we only listen if isMember is true to avoid permission errors if rules are strict
-        // But for now let's keep it simple and handle the "not member" state in UI
-        const q = query(collection(db, "plugins", id as string, "todos"), orderBy("createdAt", "asc"));
-        const unsubscribeTodos = onSnapshot(q, (snapshot) => {
-            const todosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTodos(todosData);
-        }, (error) => {
-            // Ignore permission errors if not member
-            if (error.code !== 'permission-denied') {
+        // Listen to todos (only if member)
+        let unsubscribeTodos = () => { };
+
+        if (isMember) {
+            const q = query(collection(db, "plugins", id as string, "todos"), orderBy("createdAt", "asc"));
+            unsubscribeTodos = onSnapshot(q, (snapshot) => {
+                const todosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setTodos(todosData);
+            }, (error) => {
                 console.error("Error fetching todos:", error);
-            }
-        });
+            });
+        } else {
+            setTodos([]);
+        }
 
         return () => {
             unsubscribeMembers();
             unsubscribeTodos();
         };
-    }, [id, router, user, plugin?.createdByUid]); // Added plugin.createdByUid dependency for migration check
+    }, [id, router, user, plugin?.createdByUid, isMember]); // Added isMember dependency
 
     const handleAddMember = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -251,6 +253,11 @@ export default function PluginDetailsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <PluginFileHandler
+                        pluginId={plugin.id}
+                        isMember={isMember}
+                        currentUserId={user.uid}
+                    />
                     <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 w-full md:w-auto">

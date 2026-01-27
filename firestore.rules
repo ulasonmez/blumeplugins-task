@@ -71,6 +71,11 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read, write: if isMember(pluginId) || isCreator(pluginId);
       }
+
+      // Files subcollection
+      match /files/{fileId} {
+        allow read, write: if isMember(pluginId) || isCreator(pluginId);
+      }
     }
 
     // System collection for shared features
