@@ -61,8 +61,8 @@ service cloud.firestore {
 
       // Members subcollection
       match /members/{memberUid} {
-        // Any member can read the member list
-        allow read: if isMember(pluginId) || isCreator(pluginId) || isUlas(); 
+        // Any authenticated user should be able to read the member list to do client-side membership checks
+        allow read: if isAuthenticated(); 
         // Only owner (or creator during setup) can write/add members
         allow write: if isPluginOwner(pluginId) || isCreator(pluginId) || isUlas();
       }
@@ -93,9 +93,25 @@ service cloud.firestore {
       }
     }
 
+    // Helper function to check if user is a member of YouTubers
+    function isYoutubersMember() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/youtubers_members/$(request.auth.uid));
+    }
+
     // System collection for shared features
     match /system/shared_notepad {
       allow read, write: if isAuthenticated();
+    }
+
+    // Youtubers collection
+    match /youtubers/{youtuberId} {
+      allow read, write: if isUlas() || isYoutubersMember();
+    }
+
+    // Youtubers Members collection
+    match /youtubers_members/{memberUid} {
+      allow read: if isUlas() || isYoutubersMember() || request.auth.uid == memberUid;
+      allow write: if isUlas();
     }
   }
 }
