@@ -11,6 +11,13 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    // Helper function to check if user is Ulas
+    function isUlas() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName == "Ulas";
+    }
+
     // Helper: Check if user is a member of the plugin
     function isMember(pluginId) {
       return isAuthenticated() && exists(/databases/$(database)/documents/plugins/$(pluginId)/members/$(request.auth.uid));
@@ -42,20 +49,28 @@ service cloud.firestore {
     match /plugins/{pluginId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (isCreator(pluginId) || isPluginOwner(pluginId));
+      allow update: if isAuthenticated() && (
+        isCreator(pluginId) || 
+        isPluginOwner(pluginId) || 
+        isUlas() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate', 'endDate']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endDate']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate'])
+      );
+      allow delete: if isAuthenticated() && (isCreator(pluginId) || isPluginOwner(pluginId) || isUlas());
 
       // Members subcollection
       match /members/{memberUid} {
         // Any member can read the member list
-        allow read: if isMember(pluginId) || isCreator(pluginId); 
+        allow read: if isMember(pluginId) || isCreator(pluginId) || isUlas(); 
         // Only owner (or creator during setup) can write/add members
-        allow write: if isPluginOwner(pluginId) || isCreator(pluginId);
+        allow write: if isPluginOwner(pluginId) || isCreator(pluginId) || isUlas();
       }
 
       // Todos subcollection
       match /todos/{todoId} {
         // Only members can read/write todos
-        allow read, write: if isMember(pluginId);
+        allow read, write: if isMember(pluginId) || isUlas();
       }
 
       // Notes subcollection
@@ -63,18 +78,18 @@ service cloud.firestore {
         // Only members can read notes (or maybe just the owner of the note?)
         // Requirement: "UI da sadece onları render eder" -> implies visibility control
         // Let's say members can read, but only owner of note can write
-        allow read: if isMember(pluginId);
-        allow write: if isMember(pluginId) && isOwner(uid);
+        allow read: if isMember(pluginId) || isUlas();
+        allow write: if (isMember(pluginId) && isOwner(uid)) || isUlas();
       }
 
       // Messages subcollection (Chat)
       match /messages/{messageId} {
-        allow read, write: if isMember(pluginId) || isCreator(pluginId);
+        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isUlas();
       }
 
       // Files subcollection
       match /files/{fileId} {
-        allow read, write: if isMember(pluginId) || isCreator(pluginId);
+        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isUlas();
       }
     }
 
