@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { addDoc, collection, serverTimestamp, query, orderBy, onSnapshot } from "firebase/firestore";
-import { Plus, LogOut } from "lucide-react";
+import { addDoc, collection, serverTimestamp, query, orderBy, onSnapshot, doc } from "firebase/firestore";
+import { Plus, LogOut, Youtube } from "lucide-react";
 
 import { SharedNotepad } from "@/components/SharedNotepad";
+import Link from "next/link";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +27,7 @@ export default function Home() {
   const [plugins, setPlugins] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [hasYoutubersAccess, setHasYoutubersAccess] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -61,6 +63,18 @@ export default function Home() {
     });
     return () => unsubscribe();
   }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (user.displayName === "Ulas") {
+      setHasYoutubersAccess(true);
+      return;
+    }
+    const unsubscribe = onSnapshot(doc(db, "youtubers_members", user.uid), (snap) => {
+      setHasYoutubersAccess(snap.exists());
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -112,6 +126,13 @@ export default function Home() {
 
         {/* User Profile - Responsive */}
         <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
+          {hasYoutubersAccess && (
+            <Link href="/youtubers">
+              <Button variant="ghost" size="icon" title="YouTubers" className="text-slate-400 hover:text-white hover:bg-transparent">
+                <Youtube className="w-6 h-6" />
+              </Button>
+            </Link>
+          )}
           <SharedNotepad />
           <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
