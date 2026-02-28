@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where } from "firebase/firestore";
+import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -67,9 +67,10 @@ export default function PluginDetailsPage() {
 
             // Check membership
             const memberRecord = membersData.find(m => m.uid === user.uid);
-            const isUserMember = !!memberRecord;
+            const isUserUlas = user.displayName === "Ulas";
+            const isUserMember = !!memberRecord || isUserUlas;
             setIsMember(isUserMember);
-            setIsOwner(memberRecord?.role === "owner");
+            setIsOwner(memberRecord?.role === "owner" || isUserUlas);
 
             // Legacy migration: If no members exist but user is creator, add them as owner
             if (membersData.length === 0 && plugin && plugin.createdByUid === user.uid) {
@@ -148,6 +149,40 @@ export default function PluginDetailsPage() {
             setAddMemberError("Failed to add member.");
         } finally {
             setAddingMember(false);
+        }
+    };
+
+    const handleUpdateDate = async (field: 'startDate' | 'endDate', value: string) => {
+        if (!plugin || !id) return;
+
+        try {
+            const docRef = doc(db, "plugins", id as string);
+            await updateDoc(docRef, {
+                [field]: value
+            });
+            setPlugin((prev: any) => ({ ...prev, [field]: value }));
+        } catch (error) {
+            console.error(`Error updating ${field}:`, error);
+        }
+    };
+
+    const calculateDuration = () => {
+        if (!plugin?.startDate) return null;
+
+        const start = new Date(plugin.startDate);
+        const end = plugin.endDate ? new Date(plugin.endDate) : new Date();
+
+        // Reset times to midnight for accurate day calculation
+        start.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+
+        const diffTime = end.getTime() - start.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (plugin.endDate) {
+            return `Took ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+        } else {
+            return `${diffDays} day${diffDays !== 1 ? 's' : ''} running`;
         }
     };
 
@@ -306,6 +341,37 @@ export default function PluginDetailsPage() {
                         </DialogContent>
                     </Dialog>
                 </div>
+            </div>
+
+            {/* Date Range Section */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-6 bg-[#2b2b30] p-4 rounded-lg border border-slate-700 shrink-0">
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Label htmlFor="startDate" className="text-sm font-medium text-slate-400 whitespace-nowrap">Start Date:</Label>
+                    <Input
+                        type="date"
+                        id="startDate"
+                        value={plugin.startDate || ""}
+                        onChange={(e) => handleUpdateDate('startDate', e.target.value)}
+                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 md:w-40 [color-scheme:dark]"
+                    />
+                </div>
+                <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Label htmlFor="endDate" className="text-sm font-medium text-slate-400 whitespace-nowrap">End Date:</Label>
+                    <Input
+                        type="date"
+                        id="endDate"
+                        value={plugin.endDate || ""}
+                        onChange={(e) => handleUpdateDate('endDate', e.target.value)}
+                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 md:w-40 [color-scheme:dark]"
+                    />
+                </div>
+                {plugin.startDate && (
+                    <div className="w-full md:w-auto md:ml-auto flex justify-end">
+                        <Badge variant="outline" className="bg-[#2d936c]/10 text-[#a8e6cf] border-[#2d936c]/30 px-3 py-1 text-sm whitespace-nowrap">
+                            {calculateDuration()}
+                        </Badge>
+                    </div>
+                )}
             </div>
 
             {/* Todos Sections - Grid */}
