@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { TodoItem } from "./TodoItem";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, StickyNote } from "lucide-react";
+import { Plus, StickyNote, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -19,13 +20,19 @@ interface UserTodoSectionProps {
     userName: string;
     todos: any[];
     currentUserId: string;
+    currentUserName?: string;
     videoUrl: string;
     className?: string;
 }
 
-export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, videoUrl, className }: UserTodoSectionProps) {
+export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, currentUserName, videoUrl, className }: UserTodoSectionProps) {
     const [newTodo, setNewTodo] = useState("");
     const [adding, setAdding] = useState(false);
+
+    // Copy Dialog state
+    const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+    const [selectedTodosToCopy, setSelectedTodosToCopy] = useState<string[]>([]);
+    const [copyingTodos, setCopyingTodos] = useState(false);
 
     // Todo Notes State
     const [selectedTodo, setSelectedTodo] = useState<any>(null);
@@ -121,6 +128,48 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         }
     };
 
+    const handleToggleCopySelection = (todoId: string) => {
+        if (selectedTodosToCopy.includes(todoId)) {
+            setSelectedTodosToCopy(selectedTodosToCopy.filter(id => id !== todoId));
+        } else {
+            setSelectedTodosToCopy([...selectedTodosToCopy, todoId]);
+        }
+    };
+
+    const handleSelectAllToCopy = () => {
+        if (selectedTodosToCopy.length === todos.length) {
+            setSelectedTodosToCopy([]);
+        } else {
+            setSelectedTodosToCopy(todos.map(t => t.id));
+        }
+    };
+
+    const handleCopySelectedTodos = async () => {
+        if (selectedTodosToCopy.length === 0) return;
+        setCopyingTodos(true);
+        try {
+            const todosToCopy = todos.filter(t => selectedTodosToCopy.includes(t.id));
+            const promises = todosToCopy.map(todo =>
+                addDoc(collection(db, "plugins", pluginId, "todos"), {
+                    text: todo.text,
+                    createdByUid: currentUserId,
+                    createdByName: currentUserName || "Member",
+                    completed: false,
+                    createdAt: serverTimestamp(),
+                    completedAt: null,
+                    notes: "",
+                })
+            );
+            await Promise.all(promises);
+            setIsCopyDialogOpen(false);
+            setSelectedTodosToCopy([]);
+        } catch (error) {
+            console.error("Error copying todos:", error);
+        } finally {
+            setCopyingTodos(false);
+        }
+    };
+
     return (
         <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col h-full shadow-lg", className)}>
             <div className="p-4 flex items-center justify-between border-b border-slate-600 bg-[#2b2b30]">
@@ -132,6 +181,20 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </div>
                 <div className="flex items-center gap-3">
                     <span className="text-lg font-bold text-[#a8e6cf]">{percent}%</span>
+                    {!isCurrentUser && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 border-slate-500 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-slate-400 shrink-0"
+                            onClick={() => {
+                                setSelectedTodosToCopy(todos.map(t => t.id));
+                                setIsCopyDialogOpen(true);
+                            }}
+                            title="Copy Tasks"
+                        >
+                            <Copy className="w-4 h-4" />
+                        </Button>
+                    )}
                     <Button
                         variant="outline"
                         size="sm"
@@ -202,6 +265,63 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                 {savingTodoNotes ? "Saving..." : "Save"}
                             </Button>
                         )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Copy Todos Dialog */}
+            <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+                <DialogContent className="w-full max-w-md bg-[#2b2b30] border-slate-600 text-white max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Copy Tasks from {userName}</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto py-4 space-y-2 pr-2">
+                        {todos.length === 0 ? (
+                            <p className="text-slate-400 text-center py-4 text-sm">No tasks available to copy.</p>
+                        ) : (
+                            todos.map(todo => (
+                                <div
+                                    key={todo.id}
+                                    className="flex items-start gap-3 p-3 bg-[#1e1e24] rounded-lg border border-slate-700 cursor-pointer hover:border-slate-500 transition-colors"
+                                    onClick={() => handleToggleCopySelection(todo.id)}
+                                >
+                                    <Checkbox
+                                        checked={selectedTodosToCopy.includes(todo.id)}
+                                        onCheckedChange={() => handleToggleCopySelection(todo.id)}
+                                        className="mt-1"
+                                    />
+                                    <span className={cn("text-sm", todo.completed && "line-through text-slate-500")}>
+                                        {todo.text}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-600 shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleSelectAllToCopy}
+                            className="text-slate-300 hover:text-white"
+                        >
+                            {selectedTodosToCopy.length === todos.length && todos.length > 0 ? "Deselect All" : "Select All"}
+                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsCopyDialogOpen(false)}
+                                className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleCopySelectedTodos}
+                                disabled={selectedTodosToCopy.length === 0 || copyingTodos}
+                                className="bg-[#2d936c] hover:bg-[#237a58] text-white"
+                            >
+                                {copyingTodos ? "Copying..." : `Copy (${selectedTodosToCopy.length})`}
+                            </Button>
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
