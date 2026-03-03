@@ -384,6 +384,7 @@ export default function PluginDetailsPage() {
                         userName={member.displayName}
                         todos={memberTodos[member.uid] || []}
                         currentUserId={user.uid}
+                        currentUserName={user.displayName || "Anonymous"}
                         videoUrl={plugin.videoUrl}
                     />
                 ))}
