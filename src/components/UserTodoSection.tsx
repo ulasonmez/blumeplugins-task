@@ -185,14 +185,14 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                         <Button
                             variant="outline"
                             size="sm"
-                            className="border-slate-500 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-slate-400 gap-2"
+                            className="h-8 w-8 p-0 border-slate-500 text-slate-300 hover:text-white hover:bg-slate-700 hover:border-slate-400 shrink-0"
                             onClick={() => {
                                 setSelectedTodosToCopy(todos.map(t => t.id));
                                 setIsCopyDialogOpen(true);
                             }}
+                            title="Copy Tasks"
                         >
                             <Copy className="w-4 h-4" />
-                            Copy Tasks
                         </Button>
                     )}
                     <Button
