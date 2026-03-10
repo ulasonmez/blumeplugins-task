@@ -33,11 +33,24 @@ export async function POST(req: Request) {
 
                     const photoUrl = imageMatch ? imageMatch[1] : '';
 
+                    // Extract country from ytInitialData
+                    let country = '';
+                    try {
+                        const ytDataMatch = html.match(/var\s+ytInitialData\s*=\s*({[\s\S]*?})\s*;\s*<\/script>/);
+                        if (ytDataMatch && ytDataMatch[1]) {
+                            const ytData = JSON.parse(ytDataMatch[1]);
+                            country = ytData?.metadata?.channelMetadataRenderer?.country || '';
+                        }
+                    } catch {
+                        // Country extraction failed, leave as empty
+                    }
+
                     return {
                         url,
                         name,
                         photoUrl,
                         email: '',
+                        country,
                         status: 'success',
                     };
                 } catch (err: any) {
