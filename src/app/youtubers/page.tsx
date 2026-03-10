@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, query, orderBy, deleteDoc, getDocs, where, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { ArrowLeft, Plus, Loader2, Search, Trash2, Mail, Link as LinkIcon, Users, UserPlus, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2, Search, Trash2, Mail, Link as LinkIcon, Users, UserPlus, ShieldAlert, Download, Globe, Send, MessageCircle, CheckCheck } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ interface Youtuber {
     name: string;
     photoUrl: string;
     email: string;
+    country: string;
+    mailStatus: string;
     createdAt: number;
 }
 
@@ -32,6 +34,9 @@ export default function YoutubersPage() {
     // Filter state
     const [filter, setFilter] = useState<'all' | 'found' | 'empty'>('all');
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Bulk add state
     const [showBulkAdd, setShowBulkAdd] = useState(false);
     const [bulkInput, setBulkInput] = useState('');
@@ -41,6 +46,7 @@ export default function YoutubersPage() {
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editEmail, setEditEmail] = useState('');
+    const [editCountry, setEditCountry] = useState('');
 
     // Member management state
     const [isManageOpen, setIsManageOpen] = useState(false);
@@ -109,11 +115,27 @@ export default function YoutubersPage() {
 
     // Filtered list
     const filteredYoutubers = youtubers.filter(y => {
+        // Search filter
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            const matchesName = (y.name || '').toLowerCase().includes(q);
+            const matchesEmail = (y.email || '').toLowerCase().includes(q);
+            const matchesCountry = (y.country || '').toLowerCase().includes(q);
+            if (!matchesName && !matchesEmail && !matchesCountry) return false;
+        }
+
+        // Tab filter
         if (filter === 'all') return true;
-        if (filter === 'found') return y.email && y.email.trim() !== '';
+        if (filter === 'found') return y.email && y.email.trim() !== '' && (!y.mailStatus || y.mailStatus === '');
         if (filter === 'empty') return !y.email || y.email.trim() === '';
         return true;
     });
+
+    // Counts for filter tabs
+    const countAll = youtubers.length;
+    const countFound = youtubers.filter(y => y.email && y.email.trim() !== '' && (!y.mailStatus || y.mailStatus === '')).length;
+    const countEmpty = youtubers.filter(y => !y.email || y.email.trim() === '').length;
+
 
     const handleBulkAdd = async () => {
         if (!bulkInput.trim()) return;
@@ -160,7 +182,7 @@ export default function YoutubersPage() {
             const data = await res.json();
 
             if (data.results) {
-                const batchPromises = data.results.map(async (result: { status: string, url: string, name?: string, photoUrl?: string, email?: string }) => {
+                const batchPromises = data.results.map(async (result: { status: string, url: string, name?: string, photoUrl?: string, email?: string, country?: string }) => {
                     if (result.status === 'success') {
                         const newDocRef = doc(collection(db, 'youtubers'));
                         return setDoc(newDocRef, {
@@ -168,6 +190,8 @@ export default function YoutubersPage() {
                             name: result.name || result.url,
                             photoUrl: result.photoUrl || '',
                             email: result.email || '',
+                            country: result.country || '',
+                            mailStatus: '',
                             createdAt: Date.now()
                         });
                     } else {
@@ -247,6 +271,60 @@ export default function YoutubersPage() {
         }
     };
 
+    const decodeHTML = (str: string) => {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = str;
+        return txt.value;
+    };
+
+    const handleCopyYoutubers = () => {
+        const header = 'First Name,E-Mail';
+
+        // Deduplicate by email
+        const emailMap = new Map<string, Youtuber[]>();
+        filteredYoutubers.forEach(y => {
+            const email = (y.email || '').trim().toLowerCase();
+            if (!email) return;
+            if (!emailMap.has(email)) emailMap.set(email, []);
+            emailMap.get(email)!.push(y);
+        });
+
+        const duplicates: { email: string, youtubers: Youtuber[] }[] = [];
+        const uniqueRows: string[] = [];
+
+        emailMap.forEach((group, email) => {
+            const first = group[0];
+            const name = decodeHTML((first.name || '')).trim().replace(/,/g, ' ');
+            const cleanEmail = (first.email || '').trim().replace(/,/g, ' ');
+            uniqueRows.push(`${name},${cleanEmail}`);
+
+            if (group.length > 1) {
+                duplicates.push({ email, youtubers: group });
+            }
+        });
+
+        // Show alert for duplicates
+        if (duplicates.length > 0) {
+            const msg = duplicates.map(d => {
+                const names = d.youtubers.map(y => `  • ${decodeHTML(y.name)} (${y.url})`).join('\n');
+                return `📧 ${d.email}:\n${names}`;
+            }).join('\n\n');
+            alert(`Aşağıdaki YouTuber'lar aynı mail adresine sahip olduğu için bire indirildi:\n\n${msg}`);
+        }
+
+        const csvContent = [header, ...uniqueRows].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `youtubers_${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     const deleteYoutuber = async (id: string, name: string) => {
         if (!confirm(`"${name}" kanalını silmek istediğinize emin misiniz?`)) return;
         try {
@@ -255,6 +333,8 @@ export default function YoutubersPage() {
             console.error('Error deleting youtuber:', error);
         }
     };
+
+
 
     if (loading || !user) {
         return <div className="min-h-screen bg-[#1e1e24] flex flex-col items-center justify-center space-y-4 text-white">
@@ -343,6 +423,24 @@ export default function YoutubersPage() {
                                 </Dialog>
                             )}
 
+                            <Link href="/youtubers/mail">
+                                <button
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#6366f1] text-white font-medium rounded-lg hover:bg-[#4f46e5] transition shadow-sm"
+                                >
+                                    <Mail className="w-4 h-4" />
+                                    <span>Mail</span>
+                                </button>
+                            </Link>
+
+                            <button
+                                onClick={handleCopyYoutubers}
+                                className="flex items-center gap-2 px-4 py-2 bg-[#3b82f6] text-white font-medium rounded-lg hover:bg-[#2563eb] transition shadow-sm"
+                                title="Tüm YouTuber bilgilerini CSV olarak indir"
+                            >
+                                <Download className="w-4 h-4" />
+                                <span>Copy YouTubers</span>
+                            </button>
+
                             <button
                                 onClick={() => setShowBulkAdd(!showBulkAdd)}
                                 className="flex items-center gap-2 px-4 py-2 bg-[#2d936c] text-white font-medium rounded-lg hover:bg-[#237a58] transition shadow-sm"
@@ -401,29 +499,54 @@ export default function YoutubersPage() {
                     </div>
                 )}
 
+                {/* Search Bar */}
+                <div className="mb-6 relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input
+                        type="text"
+                        placeholder="YouTuber ara (isim, email, ülke)..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-[#2b2b30] border border-slate-700 rounded-xl text-sm text-slate-200 placeholder:text-slate-500 focus:ring-2 focus:ring-[#2d936c] focus:border-[#2d936c] outline-none transition-shadow"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+
                 {/* Filters */}
-                <div className="flex gap-2 mb-8 bg-[#2b2b30] p-2 rounded-xl border border-slate-700 shadow-sm w-fit mx-auto lg:mx-0">
-                    <button
-                        onClick={() => setFilter('all')}
-                        className={`px-5 py-2 rounded-lg text-sm font-medium transition ${filter === 'all' ? 'bg-[#1e1e24] text-white shadow ring-1 ring-slate-600' : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-700'
-                            }`}
-                    >
-                        Hepsi <span className="ml-1 opacity-70 text-xs">({youtubers.length})</span>
-                    </button>
-                    <button
-                        onClick={() => setFilter('found')}
-                        className={`px-5 py-2 rounded-lg text-sm font-medium transition ${filter === 'found' ? 'bg-green-600/20 text-green-400 shadow ring-1 ring-green-600/50' : 'bg-transparent text-slate-400 hover:text-green-400 hover:bg-green-600/10'
-                            }`}
-                    >
-                        Bulundu <span className="ml-1 opacity-70 text-xs">({youtubers.filter(y => y.email && y.email.trim() !== '').length})</span>
-                    </button>
-                    <button
-                        onClick={() => setFilter('empty')}
-                        className={`px-5 py-2 rounded-lg text-sm font-medium transition ${filter === 'empty' ? 'bg-amber-500/20 text-amber-400 shadow ring-1 ring-amber-500/50' : 'bg-transparent text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
-                            }`}
-                    >
-                        Boş <span className="ml-1 opacity-70 text-xs">({youtubers.filter(y => !y.email || y.email.trim() === '').length})</span>
-                    </button>
+                <div className="flex flex-wrap gap-3 mb-8 items-center">
+                    {/* Left filters */}
+                    <div className="flex gap-1 bg-[#2b2b30] p-1.5 rounded-xl border border-slate-700 shadow-sm">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'all' ? 'bg-[#1e1e24] text-white shadow ring-1 ring-slate-600' : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-700'
+                                }`}
+                        >
+                            Hepsi <span className="ml-1 opacity-70 text-xs">({countAll})</span>
+                        </button>
+                        <button
+                            onClick={() => setFilter('found')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'found' ? 'bg-green-600/20 text-green-400 shadow ring-1 ring-green-600/50' : 'bg-transparent text-slate-400 hover:text-green-400 hover:bg-green-600/10'
+                                }`}
+                        >
+                            Bulundu <span className="ml-1 opacity-70 text-xs">({countFound})</span>
+                        </button>
+                        <button
+                            onClick={() => setFilter('empty')}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition ${filter === 'empty' ? 'bg-amber-500/20 text-amber-400 shadow ring-1 ring-amber-500/50' : 'bg-transparent text-slate-400 hover:text-amber-400 hover:bg-amber-500/10'
+                                }`}
+                        >
+                            Boş <span className="ml-1 opacity-70 text-xs">({countEmpty})</span>
+                        </button>
+                    </div>
+
+
                 </div>
 
                 {/* Grid */}
@@ -486,6 +609,7 @@ export default function YoutubersPage() {
                                             } else {
                                                 setEditingId(youtuber.id);
                                                 setEditEmail(youtuber.email);
+                                                setEditCountry(youtuber.country || '');
                                             }
                                         }}
                                         className="flex-1 flex flex-col w-full text-left outline-none cursor-pointer group/title"
@@ -495,7 +619,7 @@ export default function YoutubersPage() {
                                         </h3>
 
                                         {/* Status Badge */}
-                                        <div className="w-full flex items-center justify-between text-sm">
+                                        <div className="w-full flex flex-col gap-1.5 text-sm">
                                             {(youtuber.email && youtuber.email.trim() !== '') ? (
                                                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 font-medium">
                                                     <span className="truncate max-w-[150px]">{youtuber.email}</span>
@@ -504,6 +628,12 @@ export default function YoutubersPage() {
                                                 <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 font-medium">
                                                     Bilgi eksik
                                                 </span>
+                                            )}
+                                            {youtuber.country && youtuber.country.trim() !== '' && (
+                                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 font-medium">
+                                                    <Globe className="w-3 h-3" />
+                                                    <span className="truncate max-w-[150px]">{youtuber.country}</span>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -541,8 +671,8 @@ export default function YoutubersPage() {
                                         </div>
                                     )}
 
-                                    {/* Always visible precise delete button on the bottom of the card */}
-                                    <div className="mt-4 pt-3 border-t border-slate-700 flex items-center justify-end">
+                                    {/* Card actions */}
+                                    <div className="mt-4 pt-3 border-t border-slate-700 flex items-center justify-end gap-2">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
