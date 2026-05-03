@@ -326,39 +326,43 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </DialogContent>
             </Dialog>
 
-            <div className="flex-1 p-2 md:p-4 space-y-4 overflow-y-auto bg-[#1e1e24]/30">
-                <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
+            <div className="flex-1 overflow-y-auto bg-[#1e1e24]/30">
+                <div className="p-2 md:p-4 space-y-3">
+                    <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 
-                <div className="space-y-1">
-                    {todos.map(todo => (
-                        <TodoItem
-                            key={todo.id}
-                            pluginId={pluginId}
-                            todo={todo}
-                            currentUserId={currentUserId}
-                            videoUrl={videoUrl}
-                            onOpenNotes={handleOpenTodoNotes}
-                        />
-                    ))}
-                    {todos.length === 0 && (
-                        <p className="text-xs text-slate-400 italic text-center py-2">No tasks yet</p>
-                    )}
+                    <div className="space-y-1">
+                        {todos.map(todo => (
+                            <TodoItem
+                                key={todo.id}
+                                pluginId={pluginId}
+                                todo={todo}
+                                currentUserId={currentUserId}
+                                videoUrl={videoUrl}
+                                onOpenNotes={handleOpenTodoNotes}
+                            />
+                        ))}
+                        {todos.length === 0 && (
+                            <p className="text-xs text-slate-400 italic text-center py-2">No tasks yet</p>
+                        )}
+                    </div>
                 </div>
+            </div>
 
-                {isCurrentUser && (
-                    <form onSubmit={handleAddTodo} className="flex gap-2 pt-2">
+            {isCurrentUser && (
+                <div className="shrink-0 p-2 md:p-3 border-t border-slate-700 bg-[#2b2b30]">
+                    <form onSubmit={handleAddTodo} className="flex gap-2">
                         <Input
                             value={newTodo}
                             onChange={(e) => setNewTodo(e.target.value)}
                             placeholder="Add a task..."
-                            className="h-10 text-sm bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500"
+                            className="h-9 text-sm bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500"
                         />
-                        <Button type="submit" size="sm" className="h-10 w-10 p-0 bg-[#2d936c] hover:bg-[#237a58]" disabled={adding || !newTodo.trim()}>
+                        <Button type="submit" size="sm" className="h-9 w-9 p-0 bg-[#2d936c] hover:bg-[#237a58] shrink-0" disabled={adding || !newTodo.trim()}>
                             <Plus className="w-4 h-4" />
                         </Button>
                     </form>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

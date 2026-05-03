@@ -3,11 +3,9 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { FileUp, FileDown, Trash2, FileArchive, Loader2 } from "lucide-react";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { collection, addDoc, query, orderBy, onSnapshot, deleteDoc, doc, serverTimestamp } from "firebase/firestore";
+import { FileDown, Trash2, FileArchive } from "lucide-react";
+import { ref, deleteObject } from "firebase/storage";
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { format } from "date-fns";
 
@@ -30,7 +28,6 @@ interface PluginFile {
 export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginFileHandlerProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [files, setFiles] = useState<PluginFile[]>([]);
-    const [uploading, setUploading] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -45,42 +42,6 @@ export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginF
 
         return () => unsubscribe();
     }, [isOpen, pluginId]);
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        if (!file.name.endsWith('.zip')) {
-            alert("Only .zip files are allowed.");
-            return;
-        }
-
-        setUploading(true);
-        try {
-            const storagePath = `plugins/${pluginId}/files/${Date.now()}_${file.name}`;
-            const storageRef = ref(storage, storagePath);
-
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-
-            await addDoc(collection(db, "plugins", pluginId, "files"), {
-                name: file.name,
-                url: downloadURL,
-                path: storagePath,
-                uploadedBy: currentUserId,
-                uploadedAt: serverTimestamp(),
-                size: file.size
-            });
-
-        } catch (error) {
-            console.error("Error uploading file:", error);
-            alert("Failed to upload file.");
-        } finally {
-            setUploading(false);
-            // Reset input
-            e.target.value = '';
-        }
-    };
 
     const handleDelete = async (file: PluginFile) => {
         if (!confirm("Are you sure you want to delete this file?")) return;
@@ -119,28 +80,6 @@ export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginF
                 </DialogHeader>
 
                 <div className="space-y-6 mt-4">
-                    {/* Upload Section */}
-                    <div className="flex items-center gap-4 p-4 border border-dashed border-slate-600 rounded-lg bg-[#1e1e24]/50">
-                        <Input
-                            type="file"
-                            accept=".zip"
-                            onChange={handleFileUpload}
-                            className="hidden"
-                            id="file-upload"
-                            disabled={uploading}
-                        />
-                        <Label
-                            htmlFor="file-upload"
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md cursor-pointer transition-colors ${uploading ? 'bg-slate-700 text-slate-400 cursor-not-allowed' : 'bg-[#2d936c] hover:bg-[#237a58] text-white'}`}
-                        >
-                            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-                            {uploading ? "Uploading..." : "Upload .zip"}
-                        </Label>
-                        <span className="text-sm text-slate-400">
-                            Only .zip files containing JSON and PNG are allowed.
-                        </span>
-                    </div>
-
                     {/* File List */}
                     <div className="space-y-2 max-h-[400px] overflow-y-auto">
                         {loading ? (

@@ -12,9 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { PluginChat } from "@/components/PluginChat";
 import { Progress } from "@/components/ui/progress";
-import { PluginFileHandler } from "@/components/PluginFileHandler";
 
 export default function PluginDetailsPage() {
     const { id } = useParams();
@@ -263,43 +261,31 @@ export default function PluginDetailsPage() {
     return (
         <div className="h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col">
             {/* Header */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-4 md:mb-6 shrink-0 gap-4 md:gap-0">
-                <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                    <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white p-0 md:p-4">
-                        <ArrowLeft className="w-6 h-6 mr-2" /> <span className="hidden md:inline">Back</span>
-                    </Button>
-                    <h1 className="text-2xl md:text-3xl font-bold text-[#a8e6cf] truncate max-w-[200px] md:max-w-none">{plugin.name}</h1>
-                    <a
-                        href={plugin.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-slate-400 hover:text-[#2d936c]"
-                    >
-                        <ExternalLink className="w-5 h-5 md:w-6 md:h-6" />
-                    </a>
-
-                    {/* Progress Bar */}
-                    <div className="flex items-center gap-3 ml-auto md:ml-2 w-full md:w-auto mt-2 md:mt-0">
-                        <Progress value={progressPercentage} className="w-full md:w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
-                        <span className="text-xs md:text-sm font-medium text-slate-400 whitespace-nowrap">
-                            {progressPercentage}%
-                        </span>
-                    </div>
+            <div className="flex items-center gap-2 md:gap-4 mb-3 md:mb-6 shrink-0">
+                <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white p-0 md:p-4 shrink-0">
+                    <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                    <span className="hidden md:inline ml-1">Back</span>
+                </Button>
+                <h1 className="text-lg md:text-3xl font-bold text-[#a8e6cf] truncate flex-1 min-w-0">{plugin.name}</h1>
+                <a
+                    href={plugin.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-slate-400 hover:text-[#2d936c] shrink-0"
+                >
+                    <ExternalLink className="w-4 h-4 md:w-6 md:h-6" />
+                </a>
+                <div className="flex items-center gap-2 shrink-0">
+                    <Progress value={progressPercentage} className="w-16 md:w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
+                    <span className="text-xs font-medium text-slate-400 w-7 text-right">{progressPercentage}%</span>
                 </div>
-
-                <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                    <PluginFileHandler
-                        pluginId={plugin.id}
-                        isMember={isMember}
-                        currentUserId={user.uid}
-                    />
-                    <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 w-full md:w-auto">
-                                <Users className="w-4 h-4 mr-2" />
-                                {members.length} Members
-                            </Button>
-                        </DialogTrigger>
+                <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
+                            <Users className="w-4 h-4" />
+                            <span className="hidden md:inline ml-2">{members.length} Members</span>
+                        </Button>
+                    </DialogTrigger>
                         <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
                             <DialogHeader>
                                 <DialogTitle>Manage Members</DialogTitle>
@@ -340,42 +326,39 @@ export default function PluginDetailsPage() {
                             </div>
                         </DialogContent>
                     </Dialog>
-                </div>
             </div>
 
             {/* Date Range Section */}
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-6 bg-[#2b2b30] p-4 rounded-lg border border-slate-700 shrink-0">
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Label htmlFor="startDate" className="text-sm font-medium text-slate-400 whitespace-nowrap">Start Date:</Label>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:w-fit gap-2 sm:gap-3 mb-3 md:mb-4 bg-[#2b2b30] p-2 md:p-3 rounded-lg border border-slate-700 shrink-0">
+                <div className="flex items-center gap-2">
+                    <Label htmlFor="startDate" className="text-sm font-medium text-slate-400 whitespace-nowrap w-10">Start:</Label>
                     <Input
                         type="date"
                         id="startDate"
                         value={plugin.startDate || ""}
                         onChange={(e) => handleUpdateDate('startDate', e.target.value)}
-                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 md:w-40 [color-scheme:dark]"
+                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 sm:w-36 sm:flex-none [color-scheme:dark]"
                     />
                 </div>
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <Label htmlFor="endDate" className="text-sm font-medium text-slate-400 whitespace-nowrap">End Date:</Label>
+                <div className="flex items-center gap-2">
+                    <Label htmlFor="endDate" className="text-sm font-medium text-slate-400 whitespace-nowrap w-10">End:</Label>
                     <Input
                         type="date"
                         id="endDate"
                         value={plugin.endDate || ""}
                         onChange={(e) => handleUpdateDate('endDate', e.target.value)}
-                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 md:w-40 [color-scheme:dark]"
+                        className="bg-[#1e1e24] border-slate-600 text-sm h-9 flex-1 sm:w-36 sm:flex-none [color-scheme:dark]"
                     />
                 </div>
                 {plugin.startDate && (
-                    <div className="w-full md:w-auto md:ml-auto flex justify-end">
-                        <Badge variant="outline" className="bg-[#2d936c]/10 text-[#a8e6cf] border-[#2d936c]/30 px-3 py-1 text-sm whitespace-nowrap">
-                            {calculateDuration()}
-                        </Badge>
-                    </div>
+                    <Badge variant="outline" className="bg-[#2d936c]/10 text-[#a8e6cf] border-[#2d936c]/30 px-2 py-1 text-xs whitespace-nowrap self-start sm:self-auto">
+                        {calculateDuration()}
+                    </Badge>
                 )}
             </div>
 
             {/* Todos Sections - Grid */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-auto md:auto-rows-[600px] pb-20 md:pb-0">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-[70dvh] md:auto-rows-[calc(100dvh-14rem)]">
                 {members.map(member => (
                     <UserTodoSection
                         key={member.uid}
@@ -390,12 +373,6 @@ export default function PluginDetailsPage() {
                 ))}
             </div>
 
-            {/* Chat Widget */}
-            <PluginChat
-                pluginId={plugin.id}
-                currentUserId={user.uid}
-                currentUserName={user.displayName || "Anonymous"}
-            />
         </div >
     );
 }
