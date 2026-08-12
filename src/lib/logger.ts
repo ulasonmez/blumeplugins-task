@@ -6,7 +6,8 @@ export type LogAction =
     | "completed_todo" 
     | "uncompleted_todo" 
     | "deleted_todo" 
-    | "entered_page";
+    | "entered_page"
+    | "changed_date";
 
 export const logPluginAction = async (
     pluginId: string,
