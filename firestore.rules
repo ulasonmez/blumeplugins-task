@@ -113,5 +113,9 @@ service cloud.firestore {
       allow read: if isUlas() || isYoutubersMember() || request.auth.uid == memberUid;
       allow write: if isUlas();
     }
+    // Collection group query for members
+    match /{path=**}/members/{memberUid} {
+      allow read: if isAuthenticated();
+    }
   }
 }
