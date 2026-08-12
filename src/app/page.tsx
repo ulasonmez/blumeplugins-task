@@ -11,13 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { addDoc, collection, serverTimestamp, query, orderBy, onSnapshot, doc } from "firebase/firestore";
-import { Plus, LogOut, Youtube } from "lucide-react";
+import { Plus, LogOut } from "lucide-react";
 
 import { SharedNotepad } from "@/components/SharedNotepad";
 import Link from "next/link";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const isAdmin = user?.displayName === "Ulas";
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -27,7 +28,7 @@ export default function Home() {
   const [plugins, setPlugins] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [hasYoutubersAccess, setHasYoutubersAccess] = useState(false);
+
 
   // Debounce search query
   useEffect(() => {
@@ -42,9 +43,19 @@ export default function Home() {
   useEffect(() => {
     if (!user) return;
 
-    const q = query(collection(db, "plugins"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "plugins"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const pluginsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      pluginsData.sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : Number.MIN_SAFE_INTEGER;
+        const orderB = b.order !== undefined ? b.order : Number.MIN_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return timeB - timeA;
+      });
+
       setPlugins(pluginsData);
     }, (error) => {
       console.error("Error fetching plugins:", error);
@@ -64,18 +75,26 @@ export default function Home() {
     return () => unsubscribe();
   }, [router]);
 
-  useEffect(() => {
-    if (!user) return;
-    if (user.displayName === "Ulas") {
-      setHasYoutubersAccess(true);
-      return;
-    }
-    const unsubscribe = onSnapshot(doc(db, "youtubers_members", user.uid), (snap) => {
-      setHasYoutubersAccess(snap.exists());
-    });
-    return () => unsubscribe();
-  }, [user]);
+  const handleReorder = async (reorderedPlugins: any[]) => {
+    if (!isAdmin) return;
+    
+    // Optimistic update
+    setPlugins(reorderedPlugins);
 
+    try {
+      const { writeBatch, doc } = await import("firebase/firestore");
+      const batch = writeBatch(db);
+
+      reorderedPlugins.forEach((plugin, index) => {
+        const pluginRef = doc(db, "plugins", plugin.id);
+        batch.update(pluginRef, { order: index });
+      });
+
+      await batch.commit();
+    } catch (error) {
+      console.error("Error reordering plugins:", error);
+    }
+  };
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/auth");
@@ -126,13 +145,7 @@ export default function Home() {
 
         {/* User Profile - Responsive */}
         <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
-          {hasYoutubersAccess && (
-            <Link href="/youtubers">
-              <Button variant="ghost" size="icon" title="YouTubers" className="text-slate-400 hover:text-white hover:bg-transparent">
-                <Youtube className="w-6 h-6" />
-              </Button>
-            </Link>
-          )}
+
           <SharedNotepad />
           <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
@@ -201,7 +214,7 @@ export default function Home() {
           </div>
         </div>
 
-        <PluginList currentUser={user} plugins={filteredPlugins} />
+        <PluginList currentUser={user} plugins={filteredPlugins} isAdmin={isAdmin} onReorder={handleReorder} />
       </main>
     </div>
   );
