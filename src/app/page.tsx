@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { addDoc, collection, collectionGroup, serverTimestamp, query, orderBy, onSnapshot, doc, where } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, query, orderBy, onSnapshot, doc } from "firebase/firestore";
 import { Plus, LogOut } from "lucide-react";
 
 import { SharedNotepad } from "@/components/SharedNotepad";
@@ -28,39 +28,15 @@ export default function Home() {
   const [plugins, setPlugins] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [userPluginIds, setUserPluginIds] = useState<Set<string>>(new Set());
 
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  const filteredPlugins = plugins.filter(plugin => {
-    const matchesSearch = plugin.name.toLowerCase().includes(debouncedQuery.toLowerCase());
-    const hasAccess = isAdmin || userPluginIds.has(plugin.id) || plugin.createdByUid === user?.uid;
-    return matchesSearch && hasAccess;
-  });
-
-  useEffect(() => {
-    if (!user || isAdmin) return;
-
-    const q = query(collectionGroup(db, "members"), where("uid", "==", user.uid));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const ids = new Set<string>();
-      snapshot.docs.forEach(d => {
-        const pluginRef = d.ref.parent.parent;
-        if (pluginRef) {
-          ids.add(pluginRef.id);
-        }
-      });
-      setUserPluginIds(ids);
-    }, (error) => {
-      console.error("Error fetching memberships (You may need to create a Firestore Index):", error);
-    });
-
-    return () => unsubscribe();
-  }, [user, isAdmin]);
+  const filteredPlugins = plugins.filter(plugin =>
+    plugin.name.toLowerCase().includes(debouncedQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (!user) return;
