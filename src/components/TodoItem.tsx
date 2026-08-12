@@ -7,6 +7,7 @@ import { Trash2, StickyNote, Pencil } from "lucide-react";
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { cn } from "@/lib/utils";
+import { logPluginAction } from "@/lib/logger";
 
 interface TodoItemProps {
     pluginId: string;
@@ -19,11 +20,12 @@ interface TodoItemProps {
         notes?: string;
     };
     currentUserId: string;
+    currentUserName?: string;
     videoUrl: string;
     onOpenNotes: (todo: any) => void;
 }
 
-export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes }: TodoItemProps) {
+export function TodoItem({ pluginId, todo, currentUserId, currentUserName, videoUrl, onOpenNotes }: TodoItemProps) {
     const isOwner = todo.createdByUid === currentUserId;
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -41,6 +43,14 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
                 completed: !todo.completed,
                 completedAt: !todo.completed ? serverTimestamp() : null,
             });
+            
+            await logPluginAction(
+                pluginId, 
+                !todo.completed ? "completed_todo" : "uncompleted_todo", 
+                todo.text, 
+                currentUserId, 
+                currentUserName || "Anonymous"
+            );
         } catch (error) {
             console.error("Error toggling todo:", error);
         } finally {
@@ -54,6 +64,14 @@ export function TodoItem({ pluginId, todo, currentUserId, videoUrl, onOpenNotes 
         setDeleting(true);
         try {
             await deleteDoc(doc(db, "plugins", pluginId, "todos", todo.id));
+            
+            await logPluginAction(
+                pluginId,
+                "deleted_todo",
+                todo.text,
+                currentUserId,
+                currentUserName || "Anonymous"
+            );
         } catch (error) {
             console.error("Error deleting todo:", error);
         } finally {

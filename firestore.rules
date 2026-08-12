@@ -92,6 +92,11 @@ service cloud.firestore {
       match /files/{fileId} {
         allow read, write: if isMember(pluginId) || isCreator(pluginId) || isAdmin();
       }
+
+      // Logs subcollection
+      match /logs/{logId} {
+        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isAdmin();
+      }
     }
 
     // Helper function to check if user is a member of YouTubers
