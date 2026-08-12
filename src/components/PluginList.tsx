@@ -1,11 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { PluginCard } from "./PluginCard";
 import { User } from "firebase/auth";
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { PluginCard } from "./PluginCard";
+
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    rectSortingStrategy,
+    useSortable
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface PluginListProps {
     currentUser: User;
@@ -14,12 +29,54 @@ interface PluginListProps {
     onReorder?: (plugins: any[]) => void;
 }
 
+function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, currentUser: User, isAdmin: boolean }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: plugin.id, disabled: !isAdmin });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            {...attributes}
+            {...listeners}
+            className={`h-full w-full transition-shadow ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "z-50 shadow-2xl rounded-lg bg-[#1e1e24] ring-2 ring-[#2d936c] scale-105 opacity-80 relative" : ""}`}
+        >
+            <PluginCard
+                plugin={plugin}
+                currentUser={currentUser}
+                isAdmin={isAdmin}
+            />
+        </div>
+    );
+}
+
 export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }: PluginListProps) {
-    // Determine if we are rendering on client
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // Ensures normal clicks on buttons inside the card still work
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 
     if (plugins.length === 0) {
         return (
@@ -33,54 +90,41 @@ export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }:
         return null;
     }
 
-    const handleDragEnd = (result: DropResult) => {
-        if (!result.destination) return;
-        if (result.source.index === result.destination.index) return;
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
 
-        const items = Array.from(plugins);
-        const [reorderedItem] = items.splice(result.source.index, 1);
-        items.splice(result.destination.index, 0, reorderedItem);
+        if (over && active.id !== over.id) {
+            const oldIndex = plugins.findIndex((p) => p.id === active.id);
+            const newIndex = plugins.findIndex((p) => p.id === over.id);
 
-        if (onReorder) {
-            onReorder(items);
+            const newPlugins = arrayMove(plugins, oldIndex, newIndex);
+            if (onReorder) {
+                onReorder(newPlugins);
+            }
         }
     };
 
     return (
-        <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="plugins" direction="horizontal">
-                {(provided) => (
-                    <div
-                        {...provided.droppableProps}
-                        ref={provided.innerRef}
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                    >
-                        {plugins.map((plugin, index) => (
-                            <Draggable 
-                                key={plugin.id} 
-                                draggableId={plugin.id} 
-                                index={index} 
-                                isDragDisabled={!isAdmin}
-                            >
-                                {(provided) => (
-                                    <div
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                    >
-                                        <PluginCard
-                                            plugin={plugin}
-                                            currentUser={currentUser}
-                                            isAdmin={isAdmin}
-                                        />
-                                    </div>
-                                )}
-                            </Draggable>
-                        ))}
-                        {provided.placeholder}
-                    </div>
-                )}
-            </Droppable>
-        </DragDropContext>
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+        >
+            <SortableContext
+                items={plugins.map((p) => p.id)}
+                strategy={rectSortingStrategy}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {plugins.map((plugin) => (
+                        <SortablePluginItem
+                            key={plugin.id}
+                            plugin={plugin}
+                            currentUser={currentUser}
+                            isAdmin={isAdmin}
+                        />
+                    ))}
+                </div>
+            </SortableContext>
+        </DndContext>
     );
 }
