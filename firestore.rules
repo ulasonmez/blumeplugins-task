@@ -123,5 +123,11 @@ service cloud.firestore {
     match /{path=**}/members/{memberUid} {
       allow read: if isAuthenticated();
     }
+
+    // Roleplay Mods collection
+    match /roleplayMods/{modId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }
