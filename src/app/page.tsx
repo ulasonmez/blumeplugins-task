@@ -45,7 +45,7 @@ export default function Home() {
 
     const q = query(collection(db, "plugins"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const pluginsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const pluginsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
       
       pluginsData.sort((a, b) => {
         const orderA = a.order !== undefined ? a.order : Number.MIN_SAFE_INTEGER;
