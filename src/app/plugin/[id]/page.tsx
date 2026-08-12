@@ -6,7 +6,8 @@ import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTime
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ExternalLink, Users, UserPlus, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, Users, UserPlus, ShieldAlert, ScrollText, CheckCircle2, Circle, Trash2, LogIn, Plus } from "lucide-react";
+import { logPluginAction } from "@/lib/logger";
 import { UserTodoSection } from "@/components/UserTodoSection";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,8 @@ export default function PluginDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [isMember, setIsMember] = useState(false);
     const [isOwner, setIsOwner] = useState(false);
+    const [logs, setLogs] = useState<any[]>([]);
+    const [isLogsOpen, setIsLogsOpen] = useState(false);
 
     // Member management state
     const [isManageOpen, setIsManageOpen] = useState(false);
@@ -85,6 +88,7 @@ export default function PluginDetailsPage() {
 
         // Listen to todos (only if member)
         let unsubscribeTodos = () => { };
+        let unsubscribeLogs = () => { };
 
         if (isMember) {
             const q = query(collection(db, "plugins", id as string, "todos"), orderBy("createdAt", "asc"));
@@ -94,15 +98,42 @@ export default function PluginDetailsPage() {
             }, (error) => {
                 console.error("Error fetching todos:", error);
             });
+            
+            const logsQ = query(collection(db, "plugins", id as string, "logs"), orderBy("timestamp", "desc"));
+            unsubscribeLogs = onSnapshot(logsQ, (snapshot) => {
+                const logsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setLogs(logsData);
+            }, (error) => {
+                console.error("Error fetching logs:", error);
+            });
         } else {
             setTodos([]);
+            setLogs([]);
         }
 
         return () => {
             unsubscribeMembers();
             unsubscribeTodos();
+            unsubscribeLogs();
         };
     }, [id, router, user, plugin?.createdByUid, isMember]); // Added isMember dependency
+
+    // Log page entry
+    useEffect(() => {
+        if (!id || !user || !isMember) return;
+        
+        const sessionKey = `plugin_visited_${id}_${user.uid}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, "true");
+            logPluginAction(
+                id as string,
+                "entered_page",
+                "Viewed the plugin page",
+                user.uid,
+                user.displayName || "Anonymous"
+            );
+        }
+    }, [id, user, isMember]);
 
     const handleAddMember = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -269,6 +300,45 @@ export default function PluginDetailsPage() {
     const progressPercentage = activeMembersCount > 0
         ? Math.round((totalProgressSum / activeMembersCount) * 100)
         : 0;
+        
+    const groupedLogs = logs.reduce((groups: any, log: any) => {
+        if (!log.timestamp) return groups;
+        
+        const date = log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp);
+        const dateString = new Intl.DateTimeFormat('en-GB', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        }).format(date);
+        
+        if (!groups[dateString]) {
+            groups[dateString] = [];
+        }
+        groups[dateString].push(log);
+        return groups;
+    }, {});
+    
+    const getLogIcon = (action: string) => {
+        switch (action) {
+            case "added_todo": return <Plus className="w-4 h-4 text-blue-400" />;
+            case "completed_todo": return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+            case "uncompleted_todo": return <Circle className="w-4 h-4 text-slate-400" />;
+            case "deleted_todo": return <Trash2 className="w-4 h-4 text-red-400" />;
+            case "entered_page": return <LogIn className="w-4 h-4 text-yellow-400" />;
+            default: return <ScrollText className="w-4 h-4 text-slate-400" />;
+        }
+    };
+    
+    const getLogActionText = (action: string) => {
+        switch (action) {
+            case "added_todo": return "added a task";
+            case "completed_todo": return "completed a task";
+            case "uncompleted_todo": return "uncompleted a task";
+            case "deleted_todo": return "deleted a task";
+            case "entered_page": return "viewed the page";
+            default: return "performed an action";
+        }
+    };
 
     return (
         <div className="h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col">
@@ -291,6 +361,57 @@ export default function PluginDetailsPage() {
                     <Progress value={progressPercentage} className="w-16 md:w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
                     <span className="text-xs font-medium text-slate-400 w-7 text-right">{progressPercentage}%</span>
                 </div>
+                
+                <Dialog open={isLogsOpen} onOpenChange={setIsLogsOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
+                            <ScrollText className="w-4 h-4" />
+                            <span className="hidden md:inline ml-2">Logs</span>
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-2xl rounded-lg h-[80vh] flex flex-col">
+                        <DialogHeader>
+                            <DialogTitle>Activity Logs</DialogTitle>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto space-y-6 mt-4 pr-2">
+                            {Object.keys(groupedLogs).length === 0 ? (
+                                <p className="text-slate-400 text-center py-4 text-sm">No activity logs yet.</p>
+                            ) : (
+                                Object.keys(groupedLogs).map(dateStr => (
+                                    <div key={dateStr} className="space-y-3">
+                                        <div className="sticky top-0 bg-[#2b2b30]/95 backdrop-blur py-1 z-10 border-b border-slate-700">
+                                            <h4 className="text-sm font-bold text-[#a8e6cf]">{dateStr}</h4>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {groupedLogs[dateStr].map((log: any) => (
+                                                <div key={log.id} className="flex items-start gap-3 p-2 rounded-lg bg-[#1e1e24] border border-slate-700/50">
+                                                    <div className="mt-0.5 p-1.5 bg-[#2b2b30] rounded-md border border-slate-700 shadow-sm">
+                                                        {getLogIcon(log.action)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-baseline justify-between gap-2">
+                                                            <p className="text-sm">
+                                                                <span className="font-semibold text-slate-200">{log.userName}</span>
+                                                                <span className="text-slate-400 mx-1">{getLogActionText(log.action)}</span>
+                                                            </p>
+                                                            <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                                                                {log.timestamp ? new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(log.timestamp.toDate ? log.timestamp.toDate() : new Date(log.timestamp)) : ''}
+                                                            </span>
+                                                        </div>
+                                                        {log.details && log.action !== "entered_page" && (
+                                                            <p className="text-sm text-slate-300 mt-1 truncate max-w-full italic border-l-2 border-slate-600 pl-2">"{log.details}"</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+                
                 <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                     <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">

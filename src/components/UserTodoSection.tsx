@@ -13,6 +13,7 @@ import { db } from "@/lib/firebase";
 import { Plus, StickyNote, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { logPluginAction } from "@/lib/logger";
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -60,6 +61,10 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 completedAt: null,
                 notes: "",
             });
+            
+            // Log the action
+            await logPluginAction(pluginId, "added_todo", newTodo.trim(), currentUserId, currentUserName || "Anonymous");
+            
             setNewTodo("");
         } catch (error) {
             console.error("Error adding todo:", error);
@@ -337,6 +342,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                 pluginId={pluginId}
                                 todo={todo}
                                 currentUserId={currentUserId}
+                                currentUserName={currentUserName}
                                 videoUrl={videoUrl}
                                 onOpenNotes={handleOpenTodoNotes}
                             />
