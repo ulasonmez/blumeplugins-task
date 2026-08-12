@@ -5,16 +5,21 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { PluginCard } from "./PluginCard";
 import { User } from "firebase/auth";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 
 interface PluginListProps {
     currentUser: User;
     plugins: any[];
+    isAdmin?: boolean;
+    onReorder?: (plugins: any[]) => void;
 }
 
-export function PluginList({ currentUser, plugins }: PluginListProps) {
-    // Internal fetching removed
-
-    // Loading handled by parent or assumed loaded for now
+export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }: PluginListProps) {
+    // Determine if we are rendering on client
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     if (plugins.length === 0) {
         return (
@@ -24,15 +29,58 @@ export function PluginList({ currentUser, plugins }: PluginListProps) {
         );
     }
 
+    if (!isMounted) {
+        return null;
+    }
+
+    const handleDragEnd = (result: DropResult) => {
+        if (!result.destination) return;
+        if (result.source.index === result.destination.index) return;
+
+        const items = Array.from(plugins);
+        const [reorderedItem] = items.splice(result.source.index, 1);
+        items.splice(result.destination.index, 0, reorderedItem);
+
+        if (onReorder) {
+            onReorder(items);
+        }
+    };
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plugins.map(plugin => (
-                <PluginCard
-                    key={plugin.id}
-                    plugin={plugin}
-                    currentUser={currentUser}
-                />
-            ))}
-        </div>
+        <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="plugins" direction="horizontal">
+                {(provided) => (
+                    <div
+                        {...provided.droppableProps}
+                        ref={provided.innerRef}
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    >
+                        {plugins.map((plugin, index) => (
+                            <Draggable 
+                                key={plugin.id} 
+                                draggableId={plugin.id} 
+                                index={index} 
+                                isDragDisabled={!isAdmin}
+                            >
+                                {(provided) => (
+                                    <div
+                                        ref={provided.innerRef}
+                                        {...provided.draggableProps}
+                                        {...provided.dragHandleProps}
+                                    >
+                                        <PluginCard
+                                            plugin={plugin}
+                                            currentUser={currentUser}
+                                            isAdmin={isAdmin}
+                                        />
+                                    </div>
+                                )}
+                            </Draggable>
+                        ))}
+                        {provided.placeholder}
+                    </div>
+                )}
+            </Droppable>
+        </DragDropContext>
     );
 }
