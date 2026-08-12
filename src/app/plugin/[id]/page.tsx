@@ -6,7 +6,7 @@ import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTime
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ExternalLink, Users, UserPlus, ShieldAlert, ScrollText, CheckCircle2, Circle, Trash2, LogIn, Plus } from "lucide-react";
+import { ArrowLeft, ExternalLink, Users, UserPlus, ShieldAlert, ScrollText, CheckCircle2, Circle, Trash2, LogIn, Plus, CalendarDays } from "lucide-react";
 import { logPluginAction } from "@/lib/logger";
 import { UserTodoSection } from "@/components/UserTodoSection";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -202,6 +202,14 @@ export default function PluginDetailsPage() {
                 [field]: value
             });
             setPlugin((prev: any) => ({ ...prev, [field]: value }));
+            
+            await logPluginAction(
+                id as string,
+                "changed_date",
+                `${field === 'startDate' ? 'Start' : 'End'} date changed to ${value}`,
+                user?.uid || "",
+                user?.displayName || "Anonymous"
+            );
         } catch (error) {
             console.error(`Error updating ${field}:`, error);
         }
@@ -325,6 +333,7 @@ export default function PluginDetailsPage() {
             case "uncompleted_todo": return <Circle className="w-4 h-4 text-slate-400" />;
             case "deleted_todo": return <Trash2 className="w-4 h-4 text-red-400" />;
             case "entered_page": return <LogIn className="w-4 h-4 text-yellow-400" />;
+            case "changed_date": return <CalendarDays className="w-4 h-4 text-purple-400" />;
             default: return <ScrollText className="w-4 h-4 text-slate-400" />;
         }
     };
@@ -336,6 +345,7 @@ export default function PluginDetailsPage() {
             case "uncompleted_todo": return "uncompleted a task";
             case "deleted_todo": return "deleted a task";
             case "entered_page": return "viewed the page";
+            case "changed_date": return "changed a date";
             default: return "performed an action";
         }
     };

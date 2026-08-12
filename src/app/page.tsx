@@ -146,6 +146,11 @@ export default function Home() {
         <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
 
           <SharedNotepad />
+          {isAdmin && (
+            <Link href="/roleplay-mods" className="text-slate-400 hover:text-[#a8e6cf] transition-colors font-medium text-sm lg:text-base whitespace-nowrap">
+              Roleplay Mods
+            </Link>
+          )}
           <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
             <LogOut className="w-6 h-6" />
