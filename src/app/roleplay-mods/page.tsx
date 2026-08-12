@@ -97,15 +97,19 @@ export default function RoleplayModsAdminPage() {
       const { doc: firestoreDoc, collection } = await import("firebase/firestore");
       const newRef = firestoreDoc(collection(db, "roleplayMods"));
       
-      const newOrder = videos.length > 0 ? Math.max(...videos.map(v => v.order)) + 1 : 0;
-      
       const batch = writeBatch(db);
+      
+      // Shift all existing videos down by 1 to make room at the top
+      videos.forEach((v) => {
+        batch.update(doc(db, "roleplayMods", v.id), { order: v.order + 1 });
+      });
+
       batch.set(newRef, {
         title,
         videoUrl: link,
         badge,
         version: note,
-        order: newOrder
+        order: 0
       });
       
       await batch.commit();
