@@ -18,7 +18,7 @@ import Link from "next/link";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const isAdmin = user?.displayName === "Ulas";
+  const isAdmin = user?.displayName === "Ulas" || user?.displayName === "Emir";
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -38,7 +38,7 @@ export default function Home() {
 
   const filteredPlugins = plugins.filter(plugin => {
     const matchesSearch = plugin.name.toLowerCase().includes(debouncedQuery.toLowerCase());
-    const hasAccess = isAdmin || userPluginIds.has(plugin.id);
+    const hasAccess = isAdmin || userPluginIds.has(plugin.id) || plugin.createdByUid === user?.uid;
     return matchesSearch && hasAccess;
   });
 
@@ -55,6 +55,8 @@ export default function Home() {
         }
       });
       setUserPluginIds(ids);
+    }, (error) => {
+      console.error("Error fetching memberships (You may need to create a Firestore Index):", error);
     });
 
     return () => unsubscribe();
@@ -191,44 +193,46 @@ export default function Home() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-[#2b2b30] border-slate-600 text-white placeholder:text-slate-500 w-full md:w-64 text-base"
             />
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-[#2d936c] hover:bg-[#237a58] text-white w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" /> Add
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
-                <DialogHeader>
-                  <DialogTitle>Add New Plugin</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleAddPlugin} className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Plugin Name</Label>
-                    <Input
-                      id="name"
-                      value={newPluginName}
-                      onChange={(e) => setNewPluginName(e.target.value)}
-                      required
-                      className="bg-[#1e1e24] border-slate-600 text-base"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="video">Video URL</Label>
-                    <Input
-                      id="video"
-                      value={newPluginVideo}
-                      onChange={(e) => setNewPluginVideo(e.target.value)}
-                      placeholder="https://youtube.com/..."
-                      required
-                      className="bg-[#1e1e24] border-slate-600 text-base"
-                    />
-                  </div>
-                  <Button type="submit" className="w-full bg-[#2d936c] hover:bg-[#237a58]" disabled={submitting}>
-                    {submitting ? "Adding..." : "Add Plugin"}
+            {isAdmin && (
+              <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-[#2d936c] hover:bg-[#237a58] text-white w-full sm:w-auto">
+                    <Plus className="w-4 h-4 mr-2" /> Add
                   </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
+                  <DialogHeader>
+                    <DialogTitle>Add New Plugin</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleAddPlugin} className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Plugin Name</Label>
+                      <Input
+                        id="name"
+                        value={newPluginName}
+                        onChange={(e) => setNewPluginName(e.target.value)}
+                        required
+                        className="bg-[#1e1e24] border-slate-600 text-base"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="video">Video URL</Label>
+                      <Input
+                        id="video"
+                        value={newPluginVideo}
+                        onChange={(e) => setNewPluginVideo(e.target.value)}
+                        placeholder="https://youtube.com/..."
+                        required
+                        className="bg-[#1e1e24] border-slate-600 text-base"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full bg-[#2d936c] hover:bg-[#237a58]" disabled={submitting}>
+                      {submitting ? "Adding..." : "Add Plugin"}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            )}
             <div className="flex items-center gap-2">
               {/* User info moved to header */}
             </div>

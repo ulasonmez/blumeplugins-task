@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where, updateDoc, deleteDoc } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -65,10 +65,10 @@ export default function PluginDetailsPage() {
 
             // Check membership
             const memberRecord = membersData.find(m => m.uid === user.uid);
-            const isUserUlas = user.displayName === "Ulas";
-            const isUserMember = !!memberRecord || isUserUlas;
+            const isUserAdmin = user.displayName === "Ulas" || user.displayName === "Emir";
+            const isUserMember = !!memberRecord || isUserAdmin;
             setIsMember(isUserMember);
-            setIsOwner(memberRecord?.role === "owner" || isUserUlas);
+            setIsOwner(memberRecord?.role === "owner" || isUserAdmin);
 
             // Legacy migration: If no members exist but user is creator, add them as owner
             if (membersData.length === 0 && plugin && plugin.createdByUid === user.uid) {
@@ -144,9 +144,21 @@ export default function PluginDetailsPage() {
             // Keep dialog open to add more
         } catch (error) {
             console.error("Error adding member:", error);
-            setAddMemberError("Failed to add member.");
+            setAddMemberError("Failed to add user. Ensure username is correct.");
         } finally {
             setAddingMember(false);
+        }
+    };
+
+    const handleRemoveMember = async (memberUid: string) => {
+        if (!isOwner) return;
+        if (confirm("Are you sure you want to remove this member?")) {
+            try {
+                await deleteDoc(doc(db, "plugins", id as string, "members", memberUid));
+            } catch (error) {
+                console.error("Error removing member:", error);
+                alert("Failed to remove member. You might not have permission.");
+            }
         }
     };
 
@@ -300,7 +312,16 @@ export default function PluginDetailsPage() {
                                                 <span className="font-medium">{member.displayName}</span>
                                                 {member.role === 'owner' && <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/50">Owner</Badge>}
                                             </div>
-                                            {/* Future: Remove member button (if owner) */}
+                                            {isOwner && member.role !== 'owner' && (
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    onClick={() => handleRemoveMember(member.uid)}
+                                                    className="text-red-400 hover:text-red-300 hover:bg-red-400/10 h-7 px-2"
+                                                >
+                                                    Remove
+                                                </Button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
