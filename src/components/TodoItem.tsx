@@ -4,13 +4,13 @@ import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Trash2, StickyNote, Pencil } from "lucide-react";
-import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logPluginAction } from "@/lib/logger";
 import { completeTodoWithTimerCheck, deleteTodoSafely } from "@/lib/timeTracking";
-import { ActiveTimer } from "@/types/timeTracking";
 import { cn } from "@/lib/utils";
 import { TodoTimer } from "./TodoTimer";
+import { toast } from "@/components/Toaster";
 
 interface TodoItemProps {
     pluginId: string;
@@ -76,7 +76,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
         if (!isOwner || deleting) return;
         
         if (activeTimer && activeTimer.todoId === todo.id) {
-            alert("Bu görevde şu an çalışan bir sayacınız var. Lütfen önce sayacı durdurun.");
+            toast("Bu görevde şu an çalışan bir sayacınız var. Lütfen önce sayacı durdurun.");
             return;
         }
 
@@ -100,7 +100,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
             );
         } catch (error) {
             console.error("Error deleting todo:", error);
-            alert("Görev silinirken hata oluştu.");
+            toast("Görev silinirken hata oluştu.");
         } finally {
             setDeleting(false);
         }
@@ -181,85 +181,89 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
             todo.completed && "bg-black/20",
             (activeTimer && activeTimer.todoId === todo.id) && "border-[#2d936c]/50 bg-[#2d936c]/5"
         )}>
-            <div className="flex items-center gap-2">
-                <Checkbox
-                    checked={todo.completed}
-                    onCheckedChange={handleToggle}
-                    disabled={!isOwner || toggling}
-                    className={cn("h-4 w-4 shrink-0 border-slate-400 bg-slate-800/50 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
-                />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
+                    <Checkbox
+                        checked={todo.completed}
+                        onCheckedChange={handleToggle}
+                        disabled={!isOwner || toggling}
+                        className={cn("mt-1 sm:mt-0 h-4 w-4 shrink-0 border-slate-400 bg-slate-800/50 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
+                    />
 
-                <div className="flex-1 min-w-0">
-                    {isEditing ? (
-                        <input
-                            autoFocus
-                            type="text"
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onBlur={handleSaveEdit}
-                            className="w-full bg-[#1e1e24] text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
-                        />
-                    ) : (
-                        <span
-                            className={cn("text-sm font-medium text-slate-200 break-words whitespace-normal leading-tight", todo.completed && "line-through text-slate-500")}
-                            onDoubleClick={() => {
-                                if (isOwner) {
-                                    setIsEditing(true);
-                                    setEditText(todo.text);
-                                }
-                            }}
-                        >
-                            {renderText(todo.text)}
-                        </span>
-                    )}
+                    <div className="flex-1 min-w-0">
+                        {isEditing ? (
+                            <input
+                                autoFocus
+                                type="text"
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onBlur={handleSaveEdit}
+                                className="w-full bg-[#1e1e24] text-white border border-slate-600 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500"
+                            />
+                        ) : (
+                            <span
+                                className={cn("text-sm font-medium text-slate-200 break-words whitespace-normal leading-tight", todo.completed && "line-through text-slate-500")}
+                                onDoubleClick={() => {
+                                    if (isOwner) {
+                                        setIsEditing(true);
+                                        setEditText(todo.text);
+                                    }
+                                }}
+                            >
+                                {renderText(todo.text)}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 
-                <TodoTimer 
-                    todo={todo}
-                    pluginId={pluginId}
-                    pluginName="" // handled upper
-                    currentUserId={currentUserId}
-                    currentUserName={currentUserName || "Anonymous"}
-                    activeTimer={activeTimer || null}
-                    elapsedSeconds={elapsedSeconds || 0}
-                    isOwner={isOwner}
-                />
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 justify-end sm:shrink-0 pl-6 sm:pl-0 mt-1 sm:mt-0">
+                    <TodoTimer 
+                        todo={todo}
+                        pluginId={pluginId}
+                        pluginName="" // handled upper
+                        currentUserId={currentUserId}
+                        currentUserName={currentUserName || "Anonymous"}
+                        activeTimer={activeTimer || null}
+                        elapsedSeconds={elapsedSeconds || 0}
+                        isOwner={isOwner}
+                    />
 
-                <div className="flex gap-1 shrink-0">
-                    {isOwner && (
+                    <div className="flex gap-1 shrink-0">
+                        {isOwner && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-400 hover:text-yellow-400"
+                                onClick={() => {
+                                    setIsEditing(true);
+                                    setEditText(todo.text);
+                                }}
+                            >
+                                <Pencil className="w-3 h-3" />
+                            </Button>
+                        )}
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-slate-400 hover:text-yellow-400"
-                            onClick={() => {
-                                setIsEditing(true);
-                                setEditText(todo.text);
-                            }}
+                            className="h-7 w-7 text-slate-400 hover:text-blue-400"
+                            onClick={() => onOpenNotes(todo)}
                         >
-                            <Pencil className="w-3 h-3" />
+                            <StickyNote className={cn("w-3 h-3", todo.notes ? "fill-current text-blue-400" : "")} />
                         </Button>
-                    )}
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-slate-400 hover:text-blue-400"
-                        onClick={() => onOpenNotes(todo)}
-                    >
-                        <StickyNote className={cn("w-3 h-3", todo.notes ? "fill-current text-blue-400" : "")} />
-                    </Button>
 
-                    {isOwner && (
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-slate-400 hover:text-red-500"
-                            onClick={handleDelete}
-                            disabled={deleting}
-                        >
-                            <Trash2 className="w-3 h-3" />
-                        </Button>
-                    )}
+                        {isOwner && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-400 hover:text-red-500"
+                                onClick={handleDelete}
+                                disabled={deleting}
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </div>
 

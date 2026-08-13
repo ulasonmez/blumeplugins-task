@@ -8,6 +8,7 @@ import { ref, deleteObject } from "firebase/storage";
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { format } from "date-fns";
+import { toast } from "@/components/Toaster";
 
 interface PluginFileHandlerProps {
     pluginId: string;
@@ -52,7 +53,7 @@ export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginF
             await deleteDoc(doc(db, "plugins", pluginId, "files", file.id));
         } catch (error) {
             console.error("Error deleting file:", error);
-            alert("Failed to delete file.");
+            toast("Dosya silinemedi.");
         }
     };
 

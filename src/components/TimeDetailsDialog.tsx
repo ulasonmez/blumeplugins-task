@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { TimeEntry } from "@/types/timeTracking";
-import { formatDurationClock, formatDurationShort } from "@/lib/timeFormatting";
+import { formatSavedDuration } from "@/lib/timeFormatting";
 import { addManualTime, deleteTimeEntry } from "@/lib/timeTracking";
 import { Trash2 } from "lucide-react";
+import { toast } from "@/components/Toaster";
 
 interface TimeDetailsDialogProps {
     isOpen: boolean;
@@ -26,6 +27,7 @@ interface TimeDetailsDialogProps {
     manualTrackedSeconds: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     firstStartedAt: any;
+    initialView?: "history" | "add-manual";
 }
 
 export function TimeDetailsDialog({
@@ -40,12 +42,13 @@ export function TimeDetailsDialog({
     totalTrackedSeconds,
     timerTrackedSeconds,
     manualTrackedSeconds,
-    firstStartedAt
+    firstStartedAt,
+    initialView = "history"
 }: TimeDetailsDialogProps) {
     const [entries, setEntries] = useState<(TimeEntry & { id: string })[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const [isAddingManual, setIsAddingManual] = useState(false);
+    const [isAddingManual, setIsAddingManual] = useState(initialView === "add-manual");
     const [manualHours, setManualHours] = useState("");
     const [manualMinutes, setManualMinutes] = useState("");
     const [manualNote, setManualNote] = useState("");
@@ -65,10 +68,36 @@ export function TimeDetailsDialog({
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TimeEntry & { id: string }));
             setEntries(data);
             setLoading(false);
+            
+            if (process.env.NODE_ENV === "development") {
+                const completedTimerEntriesTotal = data
+                  .filter(entry => entry.status === "completed" && (entry.source === "timer" || entry.source === "recovery"))
+                  .reduce((sum, entry) => sum + entry.durationSeconds, 0);
+
+                const completedManualEntriesTotal = data
+                  .filter(entry => entry.status === "completed" && entry.source === "manual")
+                  .reduce((sum, entry) => sum + entry.durationSeconds, 0);
+                  
+                if (completedTimerEntriesTotal !== timerTrackedSeconds || completedManualEntriesTotal !== manualTrackedSeconds) {
+                    console.warn(`Time tracking aggregate mismatch for task "${todoText}":`, {
+                        timerEntries: completedTimerEntriesTotal,
+                        timerAggregate: timerTrackedSeconds,
+                        manualEntries: completedManualEntriesTotal,
+                        manualAggregate: manualTrackedSeconds
+                    });
+                }
+            }
         });
 
         return () => unsubscribe();
-    }, [isOpen, pluginId, todoId]);
+    }, [isOpen, pluginId, todoId, timerTrackedSeconds, manualTrackedSeconds, todoText]);
+
+    // Reset initial view when dialog opens
+    useEffect(() => {
+        if (isOpen) {
+            setIsAddingManual(initialView === "add-manual");
+        }
+    }, [isOpen, initialView]);
 
     const handleAddManualSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,6 +130,7 @@ export function TimeDetailsDialog({
             setManualHours("");
             setManualMinutes("");
             setManualNote("");
+            onOpenChange(false);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Hata oluştu.";
             setError(msg);
@@ -120,7 +150,7 @@ export function TimeDetailsDialog({
     const handleDeleteEntry = async (entry: TimeEntry & { id: string }) => {
         if (!isOwner) return;
         if (entry.status === 'running') {
-            alert("Çalışan bir süreyi silemezsiniz. Lütfen önce durdurun.");
+            toast("Çalışan bir süreyi silemezsiniz. Lütfen önce durdurun.");
             return;
         }
         if (!window.confirm("Bu zaman kaydını silmek istediğinize emin misiniz?")) return;
@@ -129,7 +159,7 @@ export function TimeDetailsDialog({
             await deleteTimeEntry(currentUserId, pluginId, todoId, entry.id);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "Hata oluştu.";
-            alert(msg);
+            toast(msg);
         }
     };
 
@@ -137,42 +167,46 @@ export function TimeDetailsDialog({
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
             <DialogContent className="w-full max-w-md bg-[#2b2b30] border-slate-600 text-white max-h-[85vh] flex flex-col">
                 <DialogHeader>
-                    <DialogTitle>Çalışma Süresi Detayları</DialogTitle>
+                    <DialogTitle>{initialView === "add-manual" ? "Süre Ekle" : "Çalışma Süresi Detayları"}</DialogTitle>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-                    <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 space-y-2">
+                    {initialView !== "add-manual" && (
+                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 space-y-2">
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-400">Toplam:</span>
-                            <span className="font-bold text-white">{formatDurationShort(totalTrackedSeconds)}</span>
+                            <span className="font-bold text-white">{formatSavedDuration(totalTrackedSeconds)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-400">Sayaç:</span>
-                            <span>{formatDurationShort(timerTrackedSeconds)}</span>
+                            <span>{formatSavedDuration(timerTrackedSeconds)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-400">Manuel:</span>
-                            <span>{formatDurationShort(manualTrackedSeconds)}</span>
+                            <span>{formatSavedDuration(manualTrackedSeconds)}</span>
                         </div>
                         <div className="flex justify-between items-center text-sm">
                             <span className="text-slate-400">İlk başlama:</span>
                             <span>{formatTimestamp(firstStartedAt)}</span>
                         </div>
-                    </div>
+                        </div>
+                    )}
 
-                    <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-                        <h4 className="text-sm font-semibold text-slate-300">Zaman Geçmişi</h4>
-                        {isOwner && !isAddingManual && (
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-7 text-xs border-slate-600 text-slate-300 hover:text-white"
-                                onClick={() => setIsAddingManual(true)}
-                            >
-                                + Süre Ekle
-                            </Button>
-                        )}
-                    </div>
+                    {initialView !== "add-manual" && (
+                        <div className="flex justify-between items-center border-b border-slate-700 pb-2">
+                            <h4 className="text-sm font-semibold text-slate-300">Zaman Geçmişi</h4>
+                            {isOwner && !isAddingManual && (
+                                <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-7 text-xs border-slate-600 text-slate-300 hover:text-white"
+                                    onClick={() => setIsAddingManual(true)}
+                                >
+                                    + Süre Ekle
+                                </Button>
+                            )}
+                        </div>
+                    )}
 
                     {isAddingManual && (
                         <form onSubmit={handleAddManualSubmit} className="bg-[#1e1e24] p-3 rounded-lg border border-slate-600 space-y-3">
@@ -232,43 +266,46 @@ export function TimeDetailsDialog({
                             </div>
                         </form>
                     )}
-
-                    {loading ? (
-                        <p className="text-xs text-slate-500 text-center">Yükleniyor...</p>
-                    ) : entries.length === 0 ? (
-                        <p className="text-xs text-slate-500 text-center">Geçmiş bulunmuyor.</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {entries.map(entry => (
-                                <div key={entry.id} className="bg-[#1e1e24] p-2 rounded border border-slate-700/50 text-sm flex justify-between items-center">
-                                    <div className="flex flex-col">
-                                        <span className="text-slate-300">
-                                            {formatTimestamp(entry.startedAt || entry.createdAt)}
-                                            {entry.endedAt && entry.startedAt ? ` - ${new Intl.DateTimeFormat('tr-TR', {hour: '2-digit', minute: '2-digit'}).format(entry.endedAt.toDate ? entry.endedAt.toDate() : new Date(entry.endedAt as any))}` : ""}
-                                        </span>
-                                        <span className="text-xs text-slate-500">
-                                            {entry.source === 'timer' ? 'Sayaç' : entry.source === 'manual' ? 'Manuel' : 'Kurtarma'}
-                                            {entry.note ? ` · ${entry.note}` : ''}
-                                            {entry.status === 'running' ? ' · Çalışıyor' : ''}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-medium text-[#a8e6cf]">
-                                            {entry.status === 'running' ? "..." : formatDurationShort(entry.durationSeconds)}
-                                        </span>
-                                        {isOwner && entry.status !== 'running' && (
-                                            <button 
-                                                onClick={() => handleDeleteEntry(entry)}
-                                                className="text-slate-500 hover:text-red-400 p-1"
-                                                title="Sil"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
-                                    </div>
+                    {initialView !== "add-manual" && (
+                        <>
+                            {loading ? (
+                                <p className="text-xs text-slate-500 text-center">Yükleniyor...</p>
+                            ) : entries.length === 0 ? (
+                                <p className="text-xs text-slate-500 text-center">Geçmiş bulunmuyor.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {entries.map(entry => (
+                                        <div key={entry.id} className="bg-[#1e1e24] p-2 rounded border border-slate-700/50 text-sm flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                <span className="text-slate-300">
+                                                    {formatTimestamp(entry.startedAt || entry.createdAt)}
+                                                    {entry.endedAt && entry.startedAt ? ` - ${new Intl.DateTimeFormat('tr-TR', {hour: '2-digit', minute: '2-digit'}).format(entry.endedAt.toDate ? entry.endedAt.toDate() : new Date(entry.endedAt as any))}` : ""}
+                                                </span>
+                                                <span className="text-xs text-slate-500">
+                                                    {entry.source === 'timer' ? 'Sayaç' : entry.source === 'manual' ? 'Manuel' : 'Kurtarma'}
+                                                    {entry.note ? ` · ${entry.note}` : ''}
+                                                    {entry.status === 'running' ? ' · Çalışıyor' : ''}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="font-medium text-[#a8e6cf]">
+                                                    {entry.status === 'running' ? "..." : formatSavedDuration(entry.durationSeconds)}
+                                                </span>
+                                                {isOwner && entry.status !== 'running' && (
+                                                    <button 
+                                                        onClick={() => handleDeleteEntry(entry)}
+                                                        className="text-slate-500 hover:text-red-400 p-1"
+                                                        title="Sil"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
                 

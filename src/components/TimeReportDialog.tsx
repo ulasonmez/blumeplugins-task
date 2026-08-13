@@ -1,7 +1,7 @@
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { formatDurationShort } from "@/lib/timeFormatting";
+import { formatSavedDuration } from "@/lib/timeFormatting";
 
 interface TimeReportDialogProps {
     isOpen: boolean;
@@ -80,65 +80,73 @@ export function TimeReportDialog({ isOpen, onOpenChange, plugin, members, todos 
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="w-full max-w-4xl bg-[#2b2b30] border-slate-600 text-white max-h-[85vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Çalışma Süreleri Raporu</DialogTitle>
+            <DialogContent className="w-[calc(100vw-32px)] max-w-[960px] sm:max-w-[960px] bg-[#2b2b30] border-slate-600 text-white max-h-[90vh] flex flex-col p-4 md:p-6">
+                <DialogHeader className="mb-2">
+                    <DialogTitle className="text-xl md:text-2xl font-bold">Çalışma Süreleri Raporu</DialogTitle>
                 </DialogHeader>
                 
-                <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 flex flex-col">
-                            <span className="text-xs text-slate-400">Toplam Aktif Çalışma</span>
-                            <span className="text-lg font-bold text-[#a8e6cf]">{formatDurationShort(totalTrackedSeconds)}</span>
+                <div className="flex-1 overflow-y-auto pr-1 md:pr-2 space-y-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                        <div className="bg-[#1e1e24] p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                            <span className="text-xs font-bold text-slate-400 tracking-wider">TOPLAM</span>
+                            <span className="text-xl md:text-2xl font-bold text-[#a8e6cf] mt-1 whitespace-nowrap">{formatSavedDuration(totalTrackedSeconds)}</span>
                         </div>
-                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 flex flex-col">
-                            <span className="text-xs text-slate-400">Sayaçla Kaydedilen</span>
-                            <span className="text-lg font-medium">{formatDurationShort(timerTrackedSeconds)}</span>
+                        <div className="bg-[#1e1e24] p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                            <span className="text-xs font-bold text-slate-400 tracking-wider">SAYAÇ</span>
+                            <span className="text-xl md:text-2xl font-medium mt-1 whitespace-nowrap">{formatSavedDuration(timerTrackedSeconds)}</span>
                         </div>
-                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 flex flex-col">
-                            <span className="text-xs text-slate-400">Manuel Girilen</span>
-                            <span className="text-lg font-medium">{formatDurationShort(manualTrackedSeconds)}</span>
+                        <div className="bg-[#1e1e24] p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                            <span className="text-xs font-bold text-slate-400 tracking-wider">MANUEL</span>
+                            <span className="text-xl md:text-2xl font-medium mt-1 whitespace-nowrap">{formatSavedDuration(manualTrackedSeconds)}</span>
                         </div>
-                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 flex flex-col">
-                            <span className="text-xs text-slate-400">Süreli Task</span>
-                            <span className="text-lg font-medium">{tasksWithTime}</span>
+                        <div className="bg-[#1e1e24] p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                            <span className="text-xs font-bold text-slate-400 tracking-wider">SÜRELİ</span>
+                            <span className="text-xl md:text-2xl font-medium mt-1 whitespace-nowrap">{tasksWithTime}</span>
                         </div>
-                        <div className="bg-[#1e1e24] p-3 rounded-lg border border-slate-700 flex flex-col">
-                            <span className="text-xs text-slate-400">Süresiz Tamamlanan</span>
-                            <span className="text-lg font-medium text-amber-400">{completedTasksWithoutTime}</span>
+                        <div className="bg-[#1e1e24] p-4 rounded-xl border border-slate-700 flex flex-col justify-between">
+                            <span className="text-xs font-bold text-slate-400 tracking-wider">SÜRESİZ</span>
+                            <span className="text-xl md:text-2xl font-medium text-amber-400 mt-1 whitespace-nowrap">{completedTasksWithoutTime}</span>
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto rounded-lg border border-slate-700 bg-[#1e1e24]">
-                        <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="text-xs text-slate-400 uppercase bg-[#2b2b30] border-b border-slate-700">
-                                <tr>
-                                    <th className="px-4 py-3">Üye</th>
-                                    <th className="px-4 py-3 text-right">Toplam Süre</th>
-                                    <th className="px-4 py-3 text-right">Sayaç</th>
-                                    <th className="px-4 py-3 text-right">Manuel</th>
-                                    <th className="px-4 py-3 text-right">Süreli Task</th>
-                                    <th className="px-4 py-3 text-right">Süresiz Tam.</th>
-                                    <th className="px-4 py-3 text-right">Ortalama</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {memberStats.map(stat => (
-                                    <tr key={stat.uid} className="border-b border-slate-700/50 hover:bg-[#2b2b30]/50">
-                                        <td className="px-4 py-3 font-medium text-white">
-                                            {stat.name}
-                                            {stat.isFormer && <span className="ml-2 text-xs text-slate-500">(Kaldırılmış)</span>}
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-semibold text-[#a8e6cf]">{formatDurationShort(stat.total)}</td>
-                                        <td className="px-4 py-3 text-right">{formatDurationShort(stat.timer)}</td>
-                                        <td className="px-4 py-3 text-right">{formatDurationShort(stat.manual)}</td>
-                                        <td className="px-4 py-3 text-right">{stat.tasksWithTime}</td>
-                                        <td className="px-4 py-3 text-right text-amber-400/80">{stat.completedWithoutTime}</td>
-                                        <td className="px-4 py-3 text-right text-slate-400">{formatDurationShort(stat.avg)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {memberStats.map(stat => (
+                            <div key={stat.uid} className="bg-[#1e1e24] rounded-xl border border-slate-700 p-4 flex flex-col h-full min-w-0">
+                                <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-700/50">
+                                    <h3 className="font-bold text-lg text-white truncate mr-2">
+                                        {stat.name}
+                                        {stat.isFormer && <span className="ml-2 text-xs font-normal text-slate-500">(Kaldırılmış)</span>}
+                                    </h3>
+                                    <div className="text-right shrink-0">
+                                        <span className="block text-xs text-slate-400">Toplam</span>
+                                        <span className="font-bold text-[#a8e6cf] whitespace-nowrap">{formatSavedDuration(stat.total)}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm mt-auto">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400">Sayaç</span>
+                                        <span className="font-medium text-slate-200">{formatSavedDuration(stat.timer)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400">Süreli</span>
+                                        <span className="font-medium text-slate-200">{stat.tasksWithTime}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400">Manuel</span>
+                                        <span className="font-medium text-slate-200">{formatSavedDuration(stat.manual)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-400">Süresiz</span>
+                                        <span className="font-medium text-amber-400/80">{stat.completedWithoutTime}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center col-span-2 pt-2 mt-1 border-t border-slate-700/30">
+                                        <span className="text-slate-400 text-xs">Görev Başı Ortalama</span>
+                                        <span className="font-medium text-slate-300">{formatSavedDuration(stat.avg)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </DialogContent>
