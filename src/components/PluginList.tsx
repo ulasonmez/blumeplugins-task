@@ -24,12 +24,15 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface PluginListProps {
     currentUser: User;
-    plugins: Record<string, unknown>[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plugins: any[];
     isAdmin?: boolean;
-    onReorder?: (plugins: Record<string, unknown>[]) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    onReorder?: (plugins: any[]) => void;
 }
 
-function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: Record<string, unknown>, currentUser: User, isAdmin: boolean }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, currentUser: User, isAdmin: boolean }) {
     const {
         attributes,
         listeners,

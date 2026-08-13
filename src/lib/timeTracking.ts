@@ -202,7 +202,8 @@ export async function pauseTimer(uid: string) {
     });
     
     if (completedTodoData) {
-        try { await logPluginAction(completedTodoData.pluginId, "paused_todo_timer", completedTodoData.todoText, uid, "Kullanıcı"); } catch(e) { console.error(e); }
+        const data = completedTodoData as { pluginId: string, todoText: string };
+        try { await logPluginAction(data.pluginId, "paused_todo_timer", data.todoText, uid, "Kullanıcı"); } catch(e) { console.error(e); }
     }
 }
 

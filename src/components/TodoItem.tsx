@@ -8,6 +8,8 @@ import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logPluginAction } from "@/lib/logger";
 import { completeTodoWithTimerCheck, deleteTodoSafely } from "@/lib/timeTracking";
+import { ActiveTimer } from "@/types/timeTracking";
+import { cn } from "@/lib/utils";
 import { TodoTimer } from "./TodoTimer";
 
 interface TodoItemProps {
@@ -219,7 +221,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                     pluginName="" // handled upper
                     currentUserId={currentUserId}
                     currentUserName={currentUserName || "Anonymous"}
-                    activeTimer={activeTimer}
+                    activeTimer={activeTimer || null}
                     elapsedSeconds={elapsedSeconds || 0}
                     isOwner={isOwner}
                 />
@@ -261,7 +263,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                 </div>
             </div>
 
-            {todo.completed && todo.completedAt && (
+            {Boolean(todo.completed) && Boolean(todo.completedAt) && (
                 <div className="pl-6 mt-0.5">
                     <span className="text-[10px] text-slate-500">
                         {(() => {

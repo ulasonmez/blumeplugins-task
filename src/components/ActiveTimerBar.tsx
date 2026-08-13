@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Pause, CheckCircle2, ChevronRight, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 interface ActiveTimerBarProps {
     currentUserId: string;

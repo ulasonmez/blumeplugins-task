@@ -20,7 +20,7 @@ interface PluginFile {
     name: string;
     url: string;
     uploadedBy: string;
-    uploadedAt: unknown;
+    uploadedAt: { toDate?: () => Date } | string | null;
     size: number;
     path: string;
 }
@@ -96,7 +96,7 @@ export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginF
                                         <div className="flex flex-col min-w-0">
                                             <span className="font-medium truncate text-slate-200">{file.name}</span>
                                             <span className="text-xs text-slate-500">
-                                                {formatFileSize(file.size)} • {file.uploadedAt?.toDate ? format(file.uploadedAt.toDate(), 'MMM d, yyyy HH:mm') : 'Just now'}
+                                                {formatFileSize(file.size)} • {(file.uploadedAt as { toDate?: () => Date })?.toDate ? format((file.uploadedAt as { toDate: () => Date }).toDate(), 'MMM d, yyyy HH:mm') : 'Just now'}
                                             </span>
                                         </div>
                                     </div>

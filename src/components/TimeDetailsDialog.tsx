@@ -24,7 +24,8 @@ interface TimeDetailsDialogProps {
     totalTrackedSeconds: number;
     timerTrackedSeconds: number;
     manualTrackedSeconds: number;
-    firstStartedAt: unknown;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    firstStartedAt: any;
 }
 
 export function TimeDetailsDialog({
@@ -243,7 +244,7 @@ export function TimeDetailsDialog({
                                     <div className="flex flex-col">
                                         <span className="text-slate-300">
                                             {formatTimestamp(entry.startedAt || entry.createdAt)}
-                                            {entry.endedAt && entry.startedAt ? ` - ${new Intl.DateTimeFormat('tr-TR', {hour: '2-digit', minute: '2-digit'}).format(entry.endedAt.toDate ? entry.endedAt.toDate() : new Date(entry.endedAt))}` : ""}
+                                            {entry.endedAt && entry.startedAt ? ` - ${new Intl.DateTimeFormat('tr-TR', {hour: '2-digit', minute: '2-digit'}).format(entry.endedAt.toDate ? entry.endedAt.toDate() : new Date(entry.endedAt as any))}` : ""}
                                         </span>
                                         <span className="text-xs text-slate-500">
                                             {entry.source === 'timer' ? 'Sayaç' : entry.source === 'manual' ? 'Manuel' : 'Kurtarma'}
