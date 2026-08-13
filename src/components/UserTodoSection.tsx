@@ -14,19 +14,33 @@ import { Plus, StickyNote, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
+import { formatDurationShort } from "@/lib/timeFormatting";
 
 interface UserTodoSectionProps {
     pluginId: string;
     userId: string;
     userName: string;
-    todos: any[];
+    todos: Array<{
+        id: string;
+        text: string;
+        completed: boolean;
+        completedAt?: unknown;
+        createdByUid: string;
+        notes?: string;
+        totalTrackedSeconds?: number;
+        timerTrackedSeconds?: number;
+        manualTrackedSeconds?: number;
+        firstStartedAt?: unknown;
+    }>;
     currentUserId: string;
     currentUserName?: string;
     videoUrl: string;
     className?: string;
+    activeTimer?: { userId: string; pluginId: string; todoId: string; timeEntryId: string; startedAt: { toMillis: () => number } } | null;
+    elapsedSeconds?: number;
 }
 
-export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, currentUserName, videoUrl, className }: UserTodoSectionProps) {
+export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, currentUserName, videoUrl, className, activeTimer, elapsedSeconds }: UserTodoSectionProps) {
     const [newTodo, setNewTodo] = useState("");
     const [adding, setAdding] = useState(false);
 
@@ -36,7 +50,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const [copyingTodos, setCopyingTodos] = useState(false);
 
     // Todo Notes State
-    const [selectedTodo, setSelectedTodo] = useState<any>(null);
+    const [selectedTodo, setSelectedTodo] = useState<{ id: string; notes?: string } | null>(null);
     const [isTodoNotesOpen, setIsTodoNotesOpen] = useState(false);
     const [todoNotes, setTodoNotes] = useState("");
     const [savingTodoNotes, setSavingTodoNotes] = useState(false);
@@ -45,6 +59,9 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const total = todos.length;
     const done = todos.filter(t => t.completed).length;
     const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+
+    const totalTrackedSeconds = todos.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (activeTimer && activeTimer.userId === userId ? (elapsedSeconds ?? 0) : 0);
+    const completedWithoutTimeCount = todos.filter(t => t.completed && (t.totalTrackedSeconds ?? 0) === 0).length;
 
     const handleAddTodo = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -73,7 +90,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         }
     };
 
-    const handleOpenTodoNotes = (todo: any) => {
+    const handleOpenTodoNotes = (todo: { id: string; notes?: string }) => {
         setSelectedTodo(todo);
         setTodoNotes(todo.notes || "");
         setIsTodoNotesOpen(true);
@@ -179,7 +196,15 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col h-full shadow-lg", className)}>
             <div className="p-4 flex items-center justify-between border-b border-slate-600 bg-[#2b2b30]">
                 <div className="flex items-center gap-3">
-                    <h4 className="font-bold text-xl text-white">{userName}</h4>
+                    <div className="flex flex-col">
+                        <h4 className="font-bold text-xl text-white">{userName}</h4>
+                        {totalTrackedSeconds > 0 && (
+                            <span className="text-xs text-slate-400">
+                                ⏱ Toplam: {formatDurationShort(totalTrackedSeconds)}
+                                {completedWithoutTimeCount > 0 && ` · Süresiz: ${completedWithoutTimeCount}`}
+                            </span>
+                        )}
+                    </div>
                     <Badge variant="secondary" className="bg-[#2d936c] text-white hover:bg-[#237a58]">
                         {done}/{total}
                     </Badge>
@@ -215,7 +240,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
             <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
                 <DialogContent className="w-full max-w-4xl min-w-[50vw] h-[80vh] flex flex-col bg-[#2b2b30] border-slate-600 text-white overflow-hidden">
                     <DialogHeader>
-                        <DialogTitle>{userName}'s Notes</DialogTitle>
+                        <DialogTitle>{userName}&apos;un Notları</DialogTitle>
                     </DialogHeader>
                     <div className="flex-1 py-4">
                         <Textarea
@@ -223,7 +248,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                             onChange={(e) => setNotes(e.target.value)}
                             placeholder={isCurrentUser ? "Write your work notes here..." : "No notes available."}
                             className="w-full h-full resize-none p-4 text-base bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 field-sizing-fixed"
-                            style={{ fieldSizing: "fixed" } as any}
+                            style={{ fieldSizing: "fixed" as string } as React.CSSProperties}
                             disabled={!isCurrentUser}
                         />
                     </div>
@@ -345,6 +370,8 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                 currentUserName={currentUserName}
                                 videoUrl={videoUrl}
                                 onOpenNotes={handleOpenTodoNotes}
+                                activeTimer={activeTimer}
+                                elapsedSeconds={elapsedSeconds}
                             />
                         ))}
                         {todos.length === 0 && (

@@ -24,12 +24,12 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface PluginListProps {
     currentUser: User;
-    plugins: any[];
+    plugins: Record<string, unknown>[];
     isAdmin?: boolean;
-    onReorder?: (plugins: any[]) => void;
+    onReorder?: (plugins: Record<string, unknown>[]) => void;
 }
 
-function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, currentUser: User, isAdmin: boolean }) {
+function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: Record<string, unknown>, currentUser: User, isAdmin: boolean }) {
     const {
         attributes,
         listeners,
@@ -64,6 +64,7 @@ function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, cur
 export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }: PluginListProps) {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsMounted(true);
     }, []);
 

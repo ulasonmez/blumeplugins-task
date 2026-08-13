@@ -20,7 +20,7 @@ interface PluginFile {
     name: string;
     url: string;
     uploadedBy: string;
-    uploadedAt: any;
+    uploadedAt: unknown;
     size: number;
     path: string;
 }

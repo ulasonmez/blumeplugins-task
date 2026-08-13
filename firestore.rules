@@ -43,7 +43,19 @@ service cloud.firestore {
     // Let's allow read for authenticated users, write for owner.
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.displayName != "Ulas" && request.resource.data.displayName != "Emir";
+      allow update: if isOwner(uid) && (
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['displayName']) ||
+         (request.resource.data.displayName != "Ulas" && request.resource.data.displayName != "Emir")
+      );
+      allow delete: if isOwner(uid);
+    }
+
+    // activeTimers collection
+    match /activeTimers/{uid} {
+      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow create, update: if isAuthenticated() && request.auth.uid == uid && request.resource.data.userId == uid;
+      allow delete: if isAuthenticated() && request.auth.uid == uid;
     }
 
     // Plugins collection
@@ -71,7 +83,26 @@ service cloud.firestore {
       // Todos subcollection
       match /todos/{todoId} {
         // Only members can read/write todos
-        allow read, write: if isMember(pluginId) || isAdmin();
+        allow read: if isMember(pluginId) || isAdmin();
+        
+        function validAggregates(res) {
+           return (!res.keys().hasAll(['totalTrackedSeconds']) || (res.totalTrackedSeconds is number && res.totalTrackedSeconds >= 0)) &&
+                  (!res.keys().hasAll(['timerTrackedSeconds']) || (res.timerTrackedSeconds is number && res.timerTrackedSeconds >= 0)) &&
+                  (!res.keys().hasAll(['manualTrackedSeconds']) || (res.manualTrackedSeconds is number && res.manualTrackedSeconds >= 0)) &&
+                  (!res.keys().hasAll(['timeEntryCount']) || (res.timeEntryCount is number && res.timeEntryCount >= 0));
+        }
+        
+        allow create: if (isMember(pluginId) && request.resource.data.createdByUid == request.auth.uid && validAggregates(request.resource.data)) || isAdmin();
+        allow update: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid && request.resource.data.createdByUid == resource.data.createdByUid && validAggregates(request.resource.data)) || isAdmin();
+        allow delete: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid) || isAdmin();
+
+        match /timeEntries/{entryId} {
+           allow read: if isMember(pluginId) || isAdmin();
+           // Only task owner can add time entries or admin
+           allow create: if (isMember(pluginId) && request.resource.data.userId == request.auth.uid && get(/databases/$(database)/documents/plugins/$(pluginId)/todos/$(todoId)).data.createdByUid == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isAdmin();
+           allow update: if (isMember(pluginId) && resource.data.userId == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isAdmin();
+           allow delete: if (isMember(pluginId) && resource.data.userId == request.auth.uid) || isAdmin();
+        }
       }
 
       // Notes subcollection

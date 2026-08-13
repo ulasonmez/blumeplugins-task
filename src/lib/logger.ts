@@ -7,7 +7,16 @@ export type LogAction =
     | "uncompleted_todo" 
     | "deleted_todo" 
     | "entered_page"
-    | "changed_date";
+    | "changed_date"
+    | "started_todo_timer"
+    | "paused_todo_timer"
+    | "switched_todo_timer"
+    | "completed_todo_with_timer"
+    | "added_manual_time"
+    | "adjusted_time_entry"
+    | "deleted_time_entry"
+    | "recovered_long_timer"
+    | "discarded_running_timer";
 
 export const logPluginAction = async (
     pluginId: string,
