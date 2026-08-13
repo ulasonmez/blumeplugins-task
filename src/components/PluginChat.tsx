@@ -36,6 +36,7 @@ export function PluginChat({ pluginId, currentUserId, currentUserName }: PluginC
     useEffect(() => {
         isOpenRef.current = isOpen;
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setUnreadCount(0);
         }
     }, [isOpen]);

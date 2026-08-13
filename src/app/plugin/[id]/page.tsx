@@ -14,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useActiveTimer } from "@/hooks/useActiveTimer";
+import { ActiveTimerBar } from "@/components/ActiveTimerBar";
+import { TimeReportDialog } from "@/components/TimeReportDialog";
 
 export default function PluginDetailsPage() {
     const { id } = useParams();
@@ -33,6 +36,10 @@ export default function PluginDetailsPage() {
     const [newMemberName, setNewMemberName] = useState("");
     const [addingMember, setAddingMember] = useState(false);
     const [addMemberError, setAddMemberError] = useState("");
+
+    // Time tracking
+    const { activeTimer, elapsedSeconds } = useActiveTimer(user?.uid);
+    const [isTimeReportOpen, setIsTimeReportOpen] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -429,10 +436,10 @@ export default function PluginDetailsPage() {
                             <span className="hidden md:inline ml-2">{members.length} Members</span>
                         </Button>
                     </DialogTrigger>
-                        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
-                            <DialogHeader>
-                                <DialogTitle>Manage Members</DialogTitle>
-                            </DialogHeader>
+                    <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] max-w-lg rounded-lg">
+                        <DialogHeader>
+                            <DialogTitle>Manage Members</DialogTitle>
+                        </DialogHeader>
 
                             <div className="space-y-6 mt-4">
                                 {/* Member List */}
@@ -477,7 +484,19 @@ export default function PluginDetailsPage() {
                                 )}
                             </div>
                         </DialogContent>
-                    </Dialog>
+                </Dialog>
+                
+                {isMember && (
+                    <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3"
+                        onClick={() => setIsTimeReportOpen(true)}
+                    >
+                        <span className="hidden md:inline">Çalışma Süreleri</span>
+                        <span className="md:hidden">Süreler</span>
+                    </Button>
+                )}
             </div>
 
             {/* Date Range Section */}
@@ -521,9 +540,27 @@ export default function PluginDetailsPage() {
                         currentUserId={user.uid}
                         currentUserName={user.displayName || "Anonymous"}
                         videoUrl={plugin.videoUrl}
+                        activeTimer={activeTimer}
+                        elapsedSeconds={elapsedSeconds}
                     />
                 ))}
             </div>
+
+            <TimeReportDialog 
+                isOpen={isTimeReportOpen} 
+                onOpenChange={setIsTimeReportOpen} 
+                plugin={plugin} 
+                members={members} 
+                todos={todos} 
+            />
+
+            <ActiveTimerBar 
+                currentUserId={user.uid}
+                currentUserName={user.displayName || "Anonymous"}
+                activeTimer={activeTimer}
+                elapsedSeconds={elapsedSeconds}
+                currentPluginId={plugin.id}
+            />
 
         </div >
     );

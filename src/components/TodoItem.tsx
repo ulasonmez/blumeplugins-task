@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Trash2, StickyNote, Pencil } from "lucide-react";
 import { doc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { cn } from "@/lib/utils";
 import { logPluginAction } from "@/lib/logger";
+import { completeTodoWithTimerCheck, deleteTodoSafely } from "@/lib/timeTracking";
+import { ActiveTimer } from "@/types/timeTracking";
+import { cn } from "@/lib/utils";
+import { TodoTimer } from "./TodoTimer";
 
 interface TodoItemProps {
     pluginId: string;
@@ -15,17 +18,23 @@ interface TodoItemProps {
         id: string;
         text: string;
         completed: boolean;
-        completedAt?: any; // Using any to handle both Firestore Timestamp and Date
+        completedAt?: unknown;
         createdByUid: string;
         notes?: string;
+        totalTrackedSeconds?: number;
+        timerTrackedSeconds?: number;
+        manualTrackedSeconds?: number;
+        firstStartedAt?: unknown;
     };
     currentUserId: string;
     currentUserName?: string;
     videoUrl: string;
-    onOpenNotes: (todo: any) => void;
+    onOpenNotes: (todo: { id: string; notes?: string }) => void;
+    activeTimer?: { userId: string; pluginId: string; todoId: string; timeEntryId: string; startedAt: { toMillis: () => number } } | null;
+    elapsedSeconds?: number;
 }
 
-export function TodoItem({ pluginId, todo, currentUserId, currentUserName, videoUrl, onOpenNotes }: TodoItemProps) {
+export function TodoItem({ pluginId, todo, currentUserId, currentUserName, videoUrl, onOpenNotes, activeTimer, elapsedSeconds }: TodoItemProps) {
     const isOwner = todo.createdByUid === currentUserId;
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -39,18 +48,23 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
         if (!isOwner || toggling) return;
         setToggling(true);
         try {
-            await updateDoc(doc(db, "plugins", pluginId, "todos", todo.id), {
-                completed: !todo.completed,
-                completedAt: !todo.completed ? serverTimestamp() : null,
-            });
-            
-            await logPluginAction(
-                pluginId, 
-                !todo.completed ? "completed_todo" : "uncompleted_todo", 
-                todo.text, 
-                currentUserId, 
-                currentUserName || "Anonymous"
-            );
+            if (!todo.completed) {
+                // When completing, safely check if timer is running and stop it
+                await completeTodoWithTimerCheck(currentUserId, pluginId, todo.id, todo.text, currentUserName || "Anonymous");
+            } else {
+                // When reopening, just reopen
+                await updateDoc(doc(db, "plugins", pluginId, "todos", todo.id), {
+                    completed: false,
+                    completedAt: null,
+                });
+                await logPluginAction(
+                    pluginId, 
+                    "uncompleted_todo", 
+                    todo.text, 
+                    currentUserId, 
+                    currentUserName || "Anonymous"
+                );
+            }
         } catch (error) {
             console.error("Error toggling todo:", error);
         } finally {
@@ -60,20 +74,33 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
 
     const handleDelete = async () => {
         if (!isOwner || deleting) return;
-        // Removed confirmation
+        
+        if (activeTimer && activeTimer.todoId === todo.id) {
+            alert("Bu görevde şu an çalışan bir sayacınız var. Lütfen önce sayacı durdurun.");
+            return;
+        }
+
+        const hasTimeEntries = (todo.totalTrackedSeconds ?? 0) > 0;
+        if (hasTimeEntries) {
+            const confirmed = window.confirm("Bu göreve kaydedilmiş çalışma süreleri var. Görevi sildiğinizde bu süreler de silinecektir. Devam etmek istiyor musunuz?");
+            if (!confirmed) return;
+        } else {
+            const confirmed = window.confirm("Görevi silmek istediğinize emin misiniz?");
+            if (!confirmed) return;
+        }
+
         setDeleting(true);
         try {
-            await deleteDoc(doc(db, "plugins", pluginId, "todos", todo.id));
-            
-            await logPluginAction(
-                pluginId,
-                "deleted_todo",
-                todo.text,
+            await deleteTodoSafely(
                 currentUserId,
-                currentUserName || "Anonymous"
+                currentUserName || "Anonymous",
+                pluginId,
+                todo.id,
+                todo.text
             );
         } catch (error) {
             console.error("Error deleting todo:", error);
+            alert("Görev silinirken hata oluştu.");
         } finally {
             setDeleting(false);
         }
@@ -150,7 +177,10 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
     };
 
     return (
-        <div className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", todo.completed && "bg-black/20")}>
+        <div className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", 
+            todo.completed && "bg-black/20",
+            (activeTimer && activeTimer.todoId === todo.id) && "border-[#2d936c]/50 bg-[#2d936c]/5"
+        )}>
             <div className="flex items-center gap-2">
                 <Checkbox
                     checked={todo.completed}
@@ -184,6 +214,17 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                         </span>
                     )}
                 </div>
+                
+                <TodoTimer 
+                    todo={todo}
+                    pluginId={pluginId}
+                    pluginName="" // handled upper
+                    currentUserId={currentUserId}
+                    currentUserName={currentUserName || "Anonymous"}
+                    activeTimer={activeTimer || null}
+                    elapsedSeconds={elapsedSeconds || 0}
+                    isOwner={isOwner}
+                />
 
                 <div className="flex gap-1 shrink-0">
                     {isOwner && (
@@ -222,12 +263,13 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                 </div>
             </div>
 
-            {todo.completed && todo.completedAt && (
+            {Boolean(todo.completed) && Boolean(todo.completedAt) && (
                 <div className="pl-6 mt-0.5">
                     <span className="text-[10px] text-slate-500">
                         {(() => {
                             try {
-                                const date = todo.completedAt.toDate ? todo.completedAt.toDate() : new Date(todo.completedAt);
+                                const completedAt = todo.completedAt as { toDate?: () => Date };
+                                const date = completedAt.toDate ? completedAt.toDate() : new Date(todo.completedAt as string | number | Date);
                                 return new Intl.DateTimeFormat('tr-TR', {
                                     day: 'numeric',
                                     month: 'numeric',
