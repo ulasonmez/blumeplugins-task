@@ -54,7 +54,7 @@ service cloud.firestore {
     // activeTimers collection
     match /activeTimers/{uid} {
       allow read: if isAuthenticated() && request.auth.uid == uid;
-      allow create, update: if isAuthenticated() && request.auth.uid == uid && request.resource.data.userId == uid;
+      allow create, update: if isAuthenticated() && request.auth.uid == uid && request.resource.data.userId == uid && (!request.resource.data.keys().hasAll(['baseTrackedSeconds']) || (request.resource.data.baseTrackedSeconds is number && request.resource.data.baseTrackedSeconds >= 0));
       allow delete: if isAuthenticated() && request.auth.uid == uid;
     }
 

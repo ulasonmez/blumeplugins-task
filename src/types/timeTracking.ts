@@ -36,4 +36,5 @@ export interface ActiveTimer {
   startedAt: Timestamp;
 
   createdAt: Timestamp;
+  baseTrackedSeconds?: number;
 }

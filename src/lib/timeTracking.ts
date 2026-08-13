@@ -3,6 +3,13 @@ import { db } from "@/lib/firebase";
 import { logPluginAction } from "./logger";
 import { ActiveTimer, TimeEntry } from "@/types/timeTracking";
 
+export function sanitizeSeconds(value: unknown): number {
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+        return Math.floor(value);
+    }
+    return 0;
+}
+
 export async function startTimer(
     uid: string,
     userName: string,
@@ -13,19 +20,29 @@ export async function startTimer(
 ) {
     await runTransaction(db, async (transaction) => {
         const activeTimerRef = doc(db, "activeTimers", uid);
+        const todoRef = doc(db, "plugins", pluginId, "todos", todoId);
+        
+        // --- READ PHASE ---
         const activeTimerDoc = await transaction.get(activeTimerRef);
+        const todoDoc = await transaction.get(todoRef);
+        
+        if (!todoDoc.exists()) {
+            throw new Error("Task bulunamadı.");
+        }
+        
+        let oldTodoDoc = null;
+        let oldTimeEntryDoc = null;
+        let oldTodoRef = null;
+        let oldTimeEntryRef = null;
 
         if (activeTimerDoc.exists()) {
             const data = activeTimerDoc.data() as ActiveTimer;
             if (data.pluginId === pluginId && data.todoId === todoId) {
-                // Idempotent: Already running this timer
-                return;
+                return; // Idempotent
             }
             
             const nowMs = Timestamp.now().toMillis();
             const startedAtMs = data.startedAt.toMillis();
-            
-            // Check if > 8 hours or different day
             const startDate = new Date(startedAtMs);
             const nowDate = new Date(nowMs);
             const isDifferentDay = startDate.getDate() !== nowDate.getDate() || 
@@ -36,66 +53,70 @@ export async function startTimer(
                 throw new Error(`Başka bir task ("${data.todoText}") üzerinde çok uzun süredir veya dünden açık kalan bir sayaç var. Lütfen ekranın altındaki uyarıyı kullanarak onu kapatın veya kurtarın.`);
             }
 
-            // Auto-pause old timer logic
-            const oldTodoRef = doc(db, "plugins", data.pluginId, "todos", data.todoId);
-            const oldTodoDoc = await transaction.get(oldTodoRef);
+            oldTodoRef = doc(db, "plugins", data.pluginId, "todos", data.todoId);
+            oldTodoDoc = await transaction.get(oldTodoRef);
             
             if (oldTodoDoc.exists()) {
-                const oldTimeEntryRef = doc(db, "plugins", data.pluginId, "todos", data.todoId, "timeEntries", data.timeEntryId);
-                const oldTimeEntryDoc = await transaction.get(oldTimeEntryRef);
-                const oldNow = Timestamp.now();
-                let oldDuration = 0;
-                
-                if (oldTimeEntryDoc.exists()) {
-                    const oldTimeEntryData = oldTimeEntryDoc.data() as TimeEntry;
-                    if (oldTimeEntryData.startedAt) {
-                        oldDuration = Math.max(0, Math.floor((oldNow.toMillis() - oldTimeEntryData.startedAt.toMillis()) / 1000));
-                    }
-                    transaction.update(oldTimeEntryRef, {
-                        status: "completed",
-                        endedAt: oldNow,
-                        durationSeconds: oldDuration,
-                        updatedAt: oldNow
-                    });
-                }
-                
-                const oldTodoData = oldTodoDoc.data();
-                transaction.update(oldTodoRef, {
-                    timerTrackedSeconds: (oldTodoData.timerTrackedSeconds ?? 0) + oldDuration,
-                    totalTrackedSeconds: (oldTodoData.totalTrackedSeconds ?? 0) + oldDuration,
-                    timeEntryCount: (oldTodoData.timeEntryCount ?? 0) + 1,
-                    lastTrackedAt: oldNow
-                });
+                oldTimeEntryRef = doc(db, "plugins", data.pluginId, "todos", data.todoId, "timeEntries", data.timeEntryId);
+                oldTimeEntryDoc = await transaction.get(oldTimeEntryRef);
             }
-            // we will overwrite the activeTimerRef below anyway!
         }
-
-        const todoRef = doc(db, "plugins", pluginId, "todos", todoId);
-        const todoDoc = await transaction.get(todoRef);
         
-        if (!todoDoc.exists()) {
-            throw new Error("Task bulunamadı.");
-        }
-
+        // --- WRITE PHASE ---
         const todoData = todoDoc.data();
         if (todoData.createdByUid !== uid) {
             throw new Error("Yalnızca kendi taskınızda sayaç başlatabilirsiniz.");
         }
-
-        const timeEntryRef = doc(collection(db, "plugins", pluginId, "todos", todoId, "timeEntries"));
         
-        const startedAt = Timestamp.now();
+        const now = Timestamp.now();
+        
+        if (activeTimerDoc.exists() && oldTodoDoc && oldTodoDoc.exists() && oldTimeEntryRef) {
+            let oldDuration = 0;
+            if (oldTimeEntryDoc && oldTimeEntryDoc.exists()) {
+                const oldTimeEntryData = oldTimeEntryDoc.data() as TimeEntry;
+                if (oldTimeEntryData.startedAt) {
+                    oldDuration = Math.max(0, Math.floor((now.toMillis() - oldTimeEntryData.startedAt.toMillis()) / 1000));
+                }
+                transaction.update(oldTimeEntryRef, {
+                    status: "completed",
+                    endedAt: now,
+                    durationSeconds: oldDuration,
+                    updatedAt: now
+                });
+            }
+            
+            const oldTodoData = oldTodoDoc.data();
+            const prevTimer = sanitizeSeconds(oldTodoData.timerTrackedSeconds);
+            const prevManual = sanitizeSeconds(oldTodoData.manualTrackedSeconds);
+            const nextTimer = prevTimer + oldDuration;
+            const nextTotal = nextTimer + prevManual;
+            if (oldTodoRef!.id !== todoRef.id) {
+                transaction.update(oldTodoRef!, {
+                    timerTrackedSeconds: nextTimer,
+                    totalTrackedSeconds: nextTotal,
+                    timeEntryCount: (oldTodoData.timeEntryCount ?? 0) + 1,
+                    lastTrackedAt: now
+                });
+            } else {
+                todoData.timerTrackedSeconds = nextTimer;
+                todoData.manualTrackedSeconds = prevManual;
+                todoData.totalTrackedSeconds = nextTotal;
+                todoData.timeEntryCount = (oldTodoData.timeEntryCount ?? 0) + 1;
+            }
+        }
+        
+        const timeEntryRef = doc(collection(db, "plugins", pluginId, "todos", todoId, "timeEntries"));
         
         const timeEntry: TimeEntry = {
             userId: uid,
             userName,
             source: "timer",
             status: "running",
-            startedAt,
+            startedAt: now,
             endedAt: null,
             durationSeconds: 0,
-            createdAt: startedAt,
-            updatedAt: startedAt,
+            createdAt: now,
+            updatedAt: now,
         };
 
         transaction.set(timeEntryRef, timeEntry);
@@ -107,20 +128,30 @@ export async function startTimer(
             todoId,
             todoText,
             timeEntryId: timeEntryRef.id,
-            startedAt,
-            createdAt: startedAt,
+            startedAt: now,
+            createdAt: now,
+            baseTrackedSeconds: sanitizeSeconds(todoData.totalTrackedSeconds),
         };
 
         transaction.set(activeTimerRef, activeTimer);
 
+        const updates: Record<string, unknown> = {};
         if (!todoData.firstStartedAt) {
-            transaction.update(todoRef, {
-                firstStartedAt: serverTimestamp() // Keeping this as serverTimestamp as it's just an audit field
-            });
+            updates.firstStartedAt = serverTimestamp();
+        }
+        
+        if (oldTodoRef && oldTodoRef.id === todoRef.id) {
+            updates.timerTrackedSeconds = todoData.timerTrackedSeconds;
+            updates.totalTrackedSeconds = todoData.totalTrackedSeconds;
+            updates.timeEntryCount = todoData.timeEntryCount;
+            updates.lastTrackedAt = now;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            transaction.update(todoRef, updates);
         }
     });
     
-    // Log outside transaction as it uses serverTimestamp which is fine, but logger helper uses addDoc.
     try { await logPluginAction(pluginId, "started_todo_timer", todoText, uid, userName); } catch(e) { console.error(e); }
 }
 
@@ -182,8 +213,10 @@ export async function pauseTimer(uid: string) {
         }
 
         const todoData = todoDoc.data();
-        const timerTrackedSeconds = (todoData.timerTrackedSeconds ?? 0) + durationSeconds;
-        const totalTrackedSeconds = (todoData.totalTrackedSeconds ?? 0) + durationSeconds;
+        const prevTimer = sanitizeSeconds(todoData.timerTrackedSeconds);
+        const prevManual = sanitizeSeconds(todoData.manualTrackedSeconds);
+        const timerTrackedSeconds = prevTimer + durationSeconds;
+        const totalTrackedSeconds = timerTrackedSeconds + prevManual;
         const timeEntryCount = (todoData.timeEntryCount ?? 0) + 1;
 
         transaction.update(todoRef, {
@@ -253,8 +286,10 @@ export async function stopAndAddManualTime(
             });
             
             const todoData = todoDoc.data();
-            const timerTrackedSeconds = (todoData.timerTrackedSeconds ?? 0) + durationSeconds;
-            const totalTrackedSeconds = (todoData.totalTrackedSeconds ?? 0) + durationSeconds;
+            const prevTimer = sanitizeSeconds(todoData.timerTrackedSeconds);
+            const prevManual = sanitizeSeconds(todoData.manualTrackedSeconds);
+            const timerTrackedSeconds = prevTimer + durationSeconds;
+            const totalTrackedSeconds = timerTrackedSeconds + prevManual;
             const timeEntryCount = (todoData.timeEntryCount ?? 0) + 1;
 
             transaction.update(todoRef, {
@@ -320,8 +355,10 @@ export async function addManualTime(
 
         transaction.set(timeEntryRef, timeEntry);
 
-        const manualTrackedSeconds = (todoData.manualTrackedSeconds ?? 0) + durationSeconds;
-        const totalTrackedSeconds = (todoData.totalTrackedSeconds ?? 0) + durationSeconds;
+        const prevTimer = sanitizeSeconds(todoData.timerTrackedSeconds);
+        const prevManual = sanitizeSeconds(todoData.manualTrackedSeconds);
+        const manualTrackedSeconds = prevManual + durationSeconds;
+        const totalTrackedSeconds = prevTimer + manualTrackedSeconds;
         const timeEntryCount = (todoData.timeEntryCount ?? 0) + 1;
 
         transaction.update(todoRef, {
@@ -389,8 +426,10 @@ export async function completeTodoWithTimerCheck(
         };
         
         if (closedTimer) {
-            updates.timerTrackedSeconds = (todoData.timerTrackedSeconds ?? 0) + durationSeconds;
-            updates.totalTrackedSeconds = (todoData.totalTrackedSeconds ?? 0) + durationSeconds;
+            const prevTimer = sanitizeSeconds(todoData.timerTrackedSeconds);
+            const prevManual = sanitizeSeconds(todoData.manualTrackedSeconds);
+            updates.timerTrackedSeconds = prevTimer + durationSeconds;
+            updates.totalTrackedSeconds = prevTimer + durationSeconds + prevManual;
             updates.timeEntryCount = (todoData.timeEntryCount ?? 0) + 1;
             updates.lastTrackedAt = now;
         }
@@ -432,16 +471,24 @@ export async function deleteTimeEntry(
         
         transaction.delete(timeEntryRef);
         
-        const updates: Record<string, unknown> = {
-             timeEntryCount: Math.max(0, (todoData.timeEntryCount ?? 0) - 1),
-             totalTrackedSeconds: Math.max(0, (todoData.totalTrackedSeconds ?? 0) - durationSeconds)
-        };
+        const prevTimer = sanitizeSeconds(todoData.timerTrackedSeconds);
+        const prevManual = sanitizeSeconds(todoData.manualTrackedSeconds);
+        
+        let nextTimer = prevTimer;
+        let nextManual = prevManual;
         
         if (source === "timer" || source === "recovery") {
-             updates.timerTrackedSeconds = Math.max(0, (todoData.timerTrackedSeconds ?? 0) - durationSeconds);
+             nextTimer = Math.max(0, prevTimer - durationSeconds);
         } else if (source === "manual") {
-             updates.manualTrackedSeconds = Math.max(0, (todoData.manualTrackedSeconds ?? 0) - durationSeconds);
+             nextManual = Math.max(0, prevManual - durationSeconds);
         }
+        
+        const updates: Record<string, unknown> = {
+             timeEntryCount: Math.max(0, (todoData.timeEntryCount ?? 0) - 1),
+             timerTrackedSeconds: nextTimer,
+             manualTrackedSeconds: nextManual,
+             totalTrackedSeconds: nextTimer + nextManual
+        };
         
         transaction.update(todoRef, updates);
     });

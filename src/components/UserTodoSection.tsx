@@ -14,7 +14,7 @@ import { Plus, StickyNote, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
-import { formatDurationShort } from "@/lib/timeFormatting";
+import { formatSavedDuration } from "@/lib/timeFormatting";
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -193,14 +193,14 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     };
 
     return (
-        <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col h-full shadow-lg", className)}>
+        <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col shadow-lg", className)}>
             <div className="p-4 flex items-center justify-between border-b border-slate-600 bg-[#2b2b30]">
                 <div className="flex items-center gap-3">
                     <div className="flex flex-col">
                         <h4 className="font-bold text-xl text-white">{userName}</h4>
                         {totalTrackedSeconds > 0 && (
                             <span className="text-xs text-slate-400">
-                                ⏱ Toplam: {formatDurationShort(totalTrackedSeconds)}
+                                ⏱ Toplam: {formatSavedDuration(totalTrackedSeconds)}
                                 {completedWithoutTimeCount > 0 && ` · Süresiz: ${completedWithoutTimeCount}`}
                             </span>
                         )}
@@ -356,7 +356,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </DialogContent>
             </Dialog>
 
-            <div className="flex-1 overflow-y-auto bg-[#1e1e24]/30">
+            <div className="overflow-y-auto bg-[#1e1e24]/30">
                 <div className="p-2 md:p-4 space-y-3">
                     <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 

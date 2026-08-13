@@ -13,6 +13,7 @@ import { collection, onSnapshot, query, orderBy, doc, writeBatch, deleteDoc, upd
 import { ArrowLeft, ArrowUpToLine, ArrowUp, ArrowDown, ArrowDownToLine, Edit2, Trash2, Plus } from "lucide-react";
 import Link from "next/link";
 import { regenerateRoleplayModsJson } from "@/app/actions/roleplayMods";
+import { toast } from "@/components/Toaster";
 
 interface RoleplayMod {
   id: string;
@@ -123,7 +124,7 @@ export default function RoleplayModsAdminPage() {
       setAddNote("");
     } catch (error) {
       console.error("Error adding video:", error);
-      alert("Failed to add video. Please try again.");
+      toast("Failed to add video. Please try again.");
     } finally {
       setIsAdding(false);
       setIsMutating(false);
@@ -159,7 +160,7 @@ export default function RoleplayModsAdminPage() {
       setEditItem(null);
     } catch (error) {
       console.error("Error updating video:", error);
-      alert("Failed to update video.");
+      toast("Failed to update video.");
     } finally {
       setIsEditing(false);
       setIsMutating(false);
@@ -198,7 +199,7 @@ export default function RoleplayModsAdminPage() {
       fetch('/roleplay-mods.json').catch(e => {});
     } catch (error) {
       console.error("Error deleting video:", error);
-      alert("Failed to delete video.");
+      toast("Failed to delete video.");
     } finally {
       setIsMutating(false);
     }
@@ -232,7 +233,7 @@ export default function RoleplayModsAdminPage() {
       fetch('/roleplay-mods.json').catch(e => {});
     } catch (error) {
       console.error("Error reordering:", error);
-      alert("Failed to reorder videos.");
+      toast("Failed to reorder videos.");
     } finally {
       setIsMutating(false);
     }

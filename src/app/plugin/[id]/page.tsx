@@ -17,6 +17,8 @@ import { Progress } from "@/components/ui/progress";
 import { useActiveTimer } from "@/hooks/useActiveTimer";
 import { ActiveTimerBar } from "@/components/ActiveTimerBar";
 import { TimeReportDialog } from "@/components/TimeReportDialog";
+import { toast } from "@/components/Toaster";
+import { cn } from "@/lib/utils";
 
 export default function PluginDetailsPage() {
     const { id } = useParams();
@@ -195,7 +197,7 @@ export default function PluginDetailsPage() {
                 await deleteDoc(doc(db, "plugins", id as string, "members", memberUid));
             } catch (error) {
                 console.error("Error removing member:", error);
-                alert("Failed to remove member. You might not have permission.");
+                toast("Failed to remove member. You might not have permission.");
             }
         }
     };
@@ -358,7 +360,7 @@ export default function PluginDetailsPage() {
     };
 
     return (
-        <div className="h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col">
+        <div className={cn("h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col", activeTimer ? "pb-24 md:pb-28" : "")}>
             {/* Header */}
             <div className="flex items-center gap-2 md:gap-4 mb-3 md:mb-6 shrink-0">
                 <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white p-0 md:p-4 shrink-0">

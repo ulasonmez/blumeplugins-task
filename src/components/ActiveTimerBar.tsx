@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDurationClock } from "@/lib/timeFormatting";
+import { formatRunningDuration } from "@/lib/timeFormatting";
 import { pauseTimer, completeTodoWithTimerCheck, stopAndAddManualTime } from "@/lib/timeTracking";
 import { Button } from "@/components/ui/button";
 import { Pause, CheckCircle2, ChevronRight, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/Toaster";
 
 interface ActiveTimerBarProps {
     currentUserId: string;
@@ -49,7 +50,7 @@ export function ActiveTimerBar({
         try {
             await pauseTimer(currentUserId);
         } catch (e: any) {
-            alert(e.message);
+            toast(e.message);
         } finally {
             setActionLoading(false);
         }
@@ -67,7 +68,7 @@ export function ActiveTimerBar({
                 currentUserName
             );
         } catch (e: any) {
-            alert(e.message);
+            toast(e.message);
         } finally {
             setActionLoading(false);
         }
@@ -104,7 +105,7 @@ export function ActiveTimerBar({
             }
             setRecoveryOpen(false);
         } catch (e: any) {
-            alert(e.message);
+            toast(e.message);
         } finally {
             setActionLoading(false);
         }
@@ -132,8 +133,13 @@ export function ActiveTimerBar({
                     )}
                 </div>
 
-                <div className="text-xl font-mono text-amber-400 font-medium">
-                    {formatDurationClock(elapsedSeconds)}
+                <div className="flex flex-col items-center justify-center mx-4">
+                    <div className="text-xl font-mono text-amber-400 font-medium leading-none">
+                        {formatRunningDuration((activeTimer.baseTrackedSeconds ?? 0) + elapsedSeconds)}
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1">
+                        Bu oturum: {formatRunningDuration(elapsedSeconds)}
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-2 border-l border-slate-700 pl-4 ml-2">

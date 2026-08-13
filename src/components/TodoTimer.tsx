@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Clock, Plus } from "lucide-react";
+import { Play, Pause, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { startTimer, pauseTimer, addManualTime } from "@/lib/timeTracking";
-import { formatDurationShort, formatDurationClock } from "@/lib/timeFormatting";
+import { formatSavedDuration, formatRunningDuration } from "@/lib/timeFormatting";
 import { TimeDetailsDialog } from "./TimeDetailsDialog";
+import { toast } from "@/components/Toaster";
 
 interface TodoTimerProps {
     todo: {
@@ -39,12 +40,18 @@ export function TodoTimer({
 }: TodoTimerProps) {
     const [actionLoading, setActionLoading] = useState(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+    const [detailsInitialView, setDetailsInitialView] = useState<"history" | "add-manual">("history");
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
     const isThisTimerActive = activeTimer && activeTimer.pluginId === pluginId && activeTimer.todoId === todo.id;
     
-    const totalTrackedSeconds = (todo.totalTrackedSeconds ?? 0) + (isThisTimerActive ? elapsedSeconds : 0);
-    const hasTime = totalTrackedSeconds > 0;
+    // When timer is active, elapsedSeconds represents the current session.
+    // We add it to the persisted total.
+    const displayedTaskTotalSeconds = isThisTimerActive
+      ? (todo.totalTrackedSeconds ?? 0) + elapsedSeconds
+      : (todo.totalTrackedSeconds ?? 0);
+    
+    const hasTime = displayedTaskTotalSeconds > 0;
 
     const handleToggleTimer = async () => {
         if (!isOwner || actionLoading) return;
@@ -65,7 +72,7 @@ export function TodoTimer({
             }
         } catch (error: unknown) {
              const msg = error instanceof Error ? error.message : "Bir hata oluştu.";
-             alert(msg);
+             toast(msg);
         } finally {
             setActionLoading(false);
         }
@@ -79,7 +86,7 @@ export function TodoTimer({
             setIsPopoverOpen(false);
         } catch (error: unknown) {
              const msg = error instanceof Error ? error.message : "Bir hata oluştu.";
-             alert(msg);
+             toast(msg);
         } finally {
             setActionLoading(false);
         }
@@ -105,7 +112,11 @@ export function TodoTimer({
                             <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => handleQuickAdd(15 * 60)}>15 dakika</Button>
                             <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => handleQuickAdd(30 * 60)}>30 dakika</Button>
                             <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => handleQuickAdd(60 * 60)}>1 saat</Button>
-                            <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => {setIsPopoverOpen(false); setIsDetailsOpen(true);}}>Özel Süre</Button>
+                            <Button variant="ghost" size="sm" className="w-full justify-start h-7 text-xs" onClick={() => {
+                                setIsPopoverOpen(false); 
+                                setDetailsInitialView("add-manual");
+                                setIsDetailsOpen(true);
+                            }}>Özel Süre</Button>
                         </div>
                     </div>
                 )}
@@ -113,6 +124,7 @@ export function TodoTimer({
                 <TimeDetailsDialog
                     isOpen={isDetailsOpen}
                     onOpenChange={setIsDetailsOpen}
+                    initialView={detailsInitialView}
                     pluginId={pluginId}
                     todoId={todo.id}
                     todoText={todo.text}
@@ -150,7 +162,10 @@ export function TodoTimer({
             
             {(hasTime || isThisTimerActive) && (
                 <button
-                    onClick={() => setIsDetailsOpen(true)}
+                    onClick={() => {
+                        setDetailsInitialView("history");
+                        setIsDetailsOpen(true);
+                    }}
                     className={cn(
                         "flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md hover:bg-slate-700/50 transition-colors cursor-pointer",
                         isThisTimerActive ? "text-amber-400 bg-amber-500/10" : "text-slate-400"
@@ -160,12 +175,12 @@ export function TodoTimer({
                     {isThisTimerActive ? (
                         <>
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse mr-0.5" />
-                            {formatDurationClock(elapsedSeconds)}
+                            {formatRunningDuration(displayedTaskTotalSeconds)}
                         </>
                     ) : (
                         <>
                             <Clock className="w-3 h-3" />
-                            {formatDurationShort(totalTrackedSeconds)}
+                            {formatSavedDuration(displayedTaskTotalSeconds)}
                         </>
                     )}
                 </button>
@@ -174,6 +189,7 @@ export function TodoTimer({
             <TimeDetailsDialog
                 isOpen={isDetailsOpen}
                 onOpenChange={setIsDetailsOpen}
+                initialView={detailsInitialView}
                 pluginId={pluginId}
                 todoId={todo.id}
                 todoText={todo.text}
