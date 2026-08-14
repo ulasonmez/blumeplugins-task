@@ -145,7 +145,7 @@ export default function Home() {
         {/* User Profile - Responsive */}
         <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
 
-          <SharedNotepad />
+          {isAdmin && <SharedNotepad />}
           {isAdmin && (
             <Link href="/roleplay-mods" className="text-slate-400 hover:text-[#a8e6cf] transition-colors font-medium text-sm lg:text-base whitespace-nowrap">
               Roleplay Mods
