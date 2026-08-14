@@ -260,13 +260,14 @@ export default function RoleplayModsAdminPage() {
         <div className="bg-[#2b2b30] p-6 rounded-lg border border-slate-700 space-y-6">
           <h2 className="text-xl font-bold text-white mb-4">Add Roleplay Mod Video</h2>
           <form onSubmit={handleAdd} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="add-title">Title</Label>
                 <Input
                   id="add-title"
                   value={addTitle}
                   onChange={(e) => setAddTitle(e.target.value)}
+                  placeholder="Video title"
                   className="bg-[#1e1e24] border-slate-600"
                   required
                 />
@@ -288,18 +289,21 @@ export default function RoleplayModsAdminPage() {
                   id="add-badge"
                   value={addBadge}
                   onChange={(e) => setAddBadge(e.target.value)}
+                  placeholder="e.g. NEW!, Mod, Nacho"
                   className="bg-[#1e1e24] border-slate-600"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="add-note">Note / README</Label>
-                <Input
-                  id="add-note"
-                  value={addNote}
-                  onChange={(e) => setAddNote(e.target.value)}
-                  className="bg-[#1e1e24] border-slate-600"
-                />
-              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-note">Note / README</Label>
+              <Textarea
+                id="add-note"
+                value={addNote}
+                onChange={(e) => setAddNote(e.target.value)}
+                placeholder="Enter video note or README..."
+                className="bg-[#1e1e24] border-slate-600 min-h-[120px] resize-y placeholder:text-slate-500 font-sans"
+                rows={4}
+              />
             </div>
             <div className="flex justify-end">
               <Button type="submit" disabled={isAdding || isMutating} className="bg-[#2d936c] hover:bg-[#237a58]">
@@ -342,8 +346,10 @@ export default function RoleplayModsAdminPage() {
                           {video.videoUrl}
                         </a>
                       </td>
-                      <td className="p-4 text-slate-400 truncate max-w-[200px]">{video.version}</td>
-                      <td className="p-4 text-slate-400">{video.badge}</td>
+                      <td className="p-4 text-slate-400 truncate max-w-[250px]" title={video.version || ""}>
+                        {video.version || "—"}
+                      </td>
+                      <td className="p-4 text-slate-400">{video.badge || "—"}</td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                           <Button 
@@ -416,7 +422,7 @@ export default function RoleplayModsAdminPage() {
 
       {/* Edit Modal */}
       <Dialog open={!!editItem} onOpenChange={(open) => !open && setEditItem(null)}>
-        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white sm:max-w-[500px]">
+        <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[95vw] sm:max-w-[600px] rounded-lg">
           <DialogHeader>
             <DialogTitle>Edit Roleplay Mod Video</DialogTitle>
           </DialogHeader>
@@ -447,16 +453,19 @@ export default function RoleplayModsAdminPage() {
                 id="edit-badge"
                 value={editBadge}
                 onChange={(e) => setEditBadge(e.target.value)}
+                placeholder="e.g. NEW!, Mod, Nacho"
                 className="bg-[#1e1e24] border-slate-600"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-note">Note / README</Label>
-              <Input
+              <Textarea
                 id="edit-note"
                 value={editNote}
                 onChange={(e) => setEditNote(e.target.value)}
-                className="bg-[#1e1e24] border-slate-600"
+                placeholder="Enter video note or README..."
+                className="bg-[#1e1e24] border-slate-600 min-h-[140px] resize-y placeholder:text-slate-500 font-sans"
+                rows={5}
               />
             </div>
             <div className="flex justify-end gap-2 pt-2">
