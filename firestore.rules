@@ -137,7 +137,7 @@ service cloud.firestore {
 
     // System collection for shared features
     match /system/shared_notepad {
-      allow read, write: if isAuthenticated();
+      allow read, write: if isAdmin();
     }
 
     // Youtubers collection
