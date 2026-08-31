@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { TodoItem } from "./TodoItem";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, StickyNote, Copy } from "lucide-react";
+import { Plus, StickyNote, Copy, PenLine, Eye, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
 import { formatSavedDuration } from "@/lib/timeFormatting";
+import { LinkifiedText, extractUrls, formatHref } from "@/components/LinkifiedText";
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -53,6 +54,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const [selectedTodo, setSelectedTodo] = useState<{ id: string; notes?: string } | null>(null);
     const [isTodoNotesOpen, setIsTodoNotesOpen] = useState(false);
     const [todoNotes, setTodoNotes] = useState("");
+    const [todoNotesViewMode, setTodoNotesViewMode] = useState<"edit" | "preview">("edit");
     const [savingTodoNotes, setSavingTodoNotes] = useState(false);
 
     const isCurrentUser = userId === currentUserId;
@@ -60,7 +62,13 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const done = todos.filter(t => t.completed).length;
     const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
-    const totalTrackedSeconds = todos.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (activeTimer && activeTimer.userId === userId ? (elapsedSeconds ?? 0) : 0);
+    // Scope active timer duration to this specific user AND this specific plugin
+    const isTimerForThisPluginAndUser = Boolean(
+        activeTimer &&
+        activeTimer.userId === userId &&
+        activeTimer.pluginId === pluginId
+    );
+    const totalTrackedSeconds = todos.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (isTimerForThisPluginAndUser ? (elapsedSeconds ?? 0) : 0);
     const completedWithoutTimeCount = todos.filter(t => t.completed && (t.totalTrackedSeconds ?? 0) === 0).length;
 
     const handleAddTodo = async (e: React.FormEvent) => {
@@ -93,6 +101,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const handleOpenTodoNotes = (todo: { id: string; notes?: string }) => {
         setSelectedTodo(todo);
         setTodoNotes(todo.notes || "");
+        setTodoNotesViewMode(isCurrentUser ? "edit" : "preview");
         setIsTodoNotesOpen(true);
     };
 
@@ -113,20 +122,25 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         }
     };
 
-
-
-    // Removed isExpanded state - always expanded
+    // Personal Notes State
     const [isNotesOpen, setIsNotesOpen] = useState(false);
     const [notes, setNotes] = useState("");
+    const [notesViewMode, setNotesViewMode] = useState<"edit" | "preview">("edit");
     const [savingNotes, setSavingNotes] = useState(false);
+
+    const detectedPersonalUrls = extractUrls(notes);
+    const detectedTodoUrls = extractUrls(todoNotes);
 
     // Fetch notes when dialog opens
     const handleOpenNotes = async () => {
+        setNotesViewMode(isCurrentUser ? "edit" : "preview");
         setIsNotesOpen(true);
         try {
             const noteDoc = await import("firebase/firestore").then(mod => mod.getDoc(mod.doc(db, "plugins", pluginId, "notes", userId)));
             if (noteDoc.exists()) {
                 setNotes(noteDoc.data().content || "");
+            } else {
+                setNotes("");
             }
         } catch (error) {
             console.error("Error fetching notes:", error);
@@ -237,26 +251,89 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </div>
             </div>
 
+            {/* Personal Notes Dialog */}
             <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
                 <DialogContent className="w-full max-w-4xl min-w-[50vw] h-[80vh] flex flex-col bg-[#2b2b30] border-slate-600 text-white overflow-hidden">
-                    <DialogHeader>
-                        <DialogTitle>{userName}&apos;un Notları</DialogTitle>
+                    <DialogHeader className="shrink-0 pb-2 border-b border-slate-700">
+                        <DialogTitle className="flex items-center justify-between">
+                            <span className="text-xl font-bold">{userName}&apos;un Notları</span>
+                            {isCurrentUser && (
+                                <div className="flex items-center bg-[#1e1e24] p-1 rounded-lg border border-slate-700 mr-8">
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotesViewMode("edit")}
+                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                            notesViewMode === "edit"
+                                                ? "bg-[#2d936c] text-white shadow-sm"
+                                                : "text-slate-400 hover:text-white"
+                                        }`}
+                                    >
+                                        <PenLine className="w-3.5 h-3.5" />
+                                        Düzenle
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotesViewMode("preview")}
+                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                            notesViewMode === "preview"
+                                                ? "bg-[#2d936c] text-white shadow-sm"
+                                                : "text-slate-400 hover:text-white"
+                                        }`}
+                                    >
+                                        <Eye className="w-3.5 h-3.5" />
+                                        Önizleme {detectedPersonalUrls.length > 0 && `(${detectedPersonalUrls.length})`}
+                                    </button>
+                                </div>
+                            )}
+                        </DialogTitle>
                     </DialogHeader>
-                    <div className="flex-1 py-4">
-                        <Textarea
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder={isCurrentUser ? "Write your work notes here..." : "No notes available."}
-                            className="w-full h-full resize-none p-4 text-base bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 field-sizing-fixed"
-                            style={{ fieldSizing: "fixed" as string } as React.CSSProperties}
-                            disabled={!isCurrentUser}
-                        />
+
+                    {/* Detected Link Chips */}
+                    {detectedPersonalUrls.length > 0 && (
+                        <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-2 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
+                            <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
+                                Linkler ({detectedPersonalUrls.length}):
+                            </span>
+                            <div className="flex items-center gap-2 overflow-x-auto">
+                                {detectedPersonalUrls.map((url, i) => (
+                                    <a
+                                        key={i}
+                                        href={formatHref(url)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+                                    >
+                                        <span className="truncate max-w-[200px]">{url}</span>
+                                        <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex-1 py-3 min-h-0 overflow-hidden">
+                        {isCurrentUser && notesViewMode === "edit" ? (
+                            <Textarea
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Buraya kişisel çalışma notlarınızı yazın... Eklediğiniz linkler tıklanabilir olacaktır."
+                                className="w-full h-full resize-none p-4 text-base bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-base leading-relaxed">
+                                {notes.trim() ? (
+                                    <LinkifiedText text={notes} />
+                                ) : (
+                                    <p className="text-slate-500 italic">Henüz not eklenmedi.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsNotesOpen(false)} className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white">Close</Button>
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-700 shrink-0">
+                        <Button variant="outline" onClick={() => setIsNotesOpen(false)} className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white">Kapat</Button>
                         {isCurrentUser && (
                             <Button onClick={handleSaveNotes} disabled={savingNotes} className="bg-[#2d936c] hover:bg-[#237a58] text-white">
-                                {savingNotes ? "Saving..." : "Save Notes"}
+                                {savingNotes ? "Kaydediliyor..." : "Notu Kaydet"}
                             </Button>
                         )}
                     </div>
@@ -265,26 +342,89 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
 
             {/* Todo Item Notes Dialog */}
             <Dialog open={isTodoNotesOpen} onOpenChange={setIsTodoNotesOpen}>
-                <DialogContent className="w-full max-w-md bg-[#2b2b30] border-slate-600 text-white">
-                    <DialogHeader>
-                        <DialogTitle>{isCurrentUser ? "Task Notes" : "View Task Notes"}</DialogTitle>
+                <DialogContent className="w-full max-w-lg bg-[#2b2b30] border-slate-600 text-white flex flex-col max-h-[85vh]">
+                    <DialogHeader className="shrink-0 pb-2 border-b border-slate-700">
+                        <DialogTitle className="flex items-center justify-between">
+                            <span>{isCurrentUser ? "Görev Notları" : `${userName} Görev Notları`}</span>
+                            {isCurrentUser && (
+                                <div className="flex items-center bg-[#1e1e24] p-1 rounded-lg border border-slate-700 mr-8">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTodoNotesViewMode("edit")}
+                                        className={`flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-md transition-all ${
+                                            todoNotesViewMode === "edit"
+                                                ? "bg-[#2d936c] text-white shadow-sm"
+                                                : "text-slate-400 hover:text-white"
+                                        }`}
+                                    >
+                                        <PenLine className="w-3 h-3" />
+                                        Düzenle
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTodoNotesViewMode("preview")}
+                                        className={`flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-md transition-all ${
+                                            todoNotesViewMode === "preview"
+                                                ? "bg-[#2d936c] text-white shadow-sm"
+                                                : "text-slate-400 hover:text-white"
+                                        }`}
+                                    >
+                                        <Eye className="w-3 h-3" />
+                                        Önizleme
+                                    </button>
+                                </div>
+                            )}
+                        </DialogTitle>
                     </DialogHeader>
-                    <div className="py-2">
-                        <Textarea
-                            value={todoNotes}
-                            onChange={(e) => setTodoNotes(e.target.value)}
-                            placeholder={isCurrentUser ? "Add notes for this task..." : "No notes available."}
-                            className="bg-[#1e1e24] border-slate-600 text-white min-h-[150px]"
-                            disabled={!isCurrentUser}
-                        />
+
+                    {/* Detected Link Chips for Todo */}
+                    {detectedTodoUrls.length > 0 && (
+                        <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-1.5 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
+                            <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
+                                Linkler ({detectedTodoUrls.length}):
+                            </span>
+                            <div className="flex items-center gap-2 overflow-x-auto">
+                                {detectedTodoUrls.map((url, i) => (
+                                    <a
+                                        key={i}
+                                        href={formatHref(url)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2 py-0.5 rounded-full whitespace-nowrap transition-colors"
+                                    >
+                                        <span className="truncate max-w-[160px]">{url}</span>
+                                        <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-70" />
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="py-2 flex-1 min-h-[160px] max-h-[50vh] overflow-y-auto">
+                        {isCurrentUser && todoNotesViewMode === "edit" ? (
+                            <Textarea
+                                value={todoNotes}
+                                onChange={(e) => setTodoNotes(e.target.value)}
+                                placeholder="Bu görev için not ekleyin... Eklediğiniz linkler tıklanabilir olacaktır."
+                                className="bg-[#1e1e24] border-slate-600 text-white min-h-[160px] h-full resize-none p-3 text-sm focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                            />
+                        ) : (
+                            <div className="bg-[#1e1e24] border border-slate-600 rounded-md p-3 min-h-[160px] text-sm leading-relaxed overflow-y-auto">
+                                {todoNotes.trim() ? (
+                                    <LinkifiedText text={todoNotes} />
+                                ) : (
+                                    <p className="text-slate-500 italic">Bu görev için henüz not girilmedi.</p>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-700 shrink-0">
                         <Button
                             variant="outline"
                             onClick={() => setIsTodoNotesOpen(false)}
                             className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
                         >
-                            {isCurrentUser ? "Cancel" : "Close"}
+                            {isCurrentUser ? "İptal" : "Kapat"}
                         </Button>
                         {isCurrentUser && (
                             <Button
@@ -292,7 +432,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                 disabled={savingTodoNotes}
                                 className="bg-[#2d936c] hover:bg-[#237a58] text-white"
                             >
-                                {savingTodoNotes ? "Saving..." : "Save"}
+                                {savingTodoNotes ? "Kaydediliyor..." : "Kaydet"}
                             </Button>
                         )}
                     </div>

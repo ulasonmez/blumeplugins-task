@@ -6,14 +6,18 @@ import { db } from "@/lib/firebase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { NotebookPen } from "lucide-react";
+import { NotebookPen, PenLine, Eye, ExternalLink } from "lucide-react";
+import { LinkifiedText, extractUrls, formatHref } from "@/components/LinkifiedText";
 
 export function SharedNotepad() {
     const [content, setContent] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const detectedUrls = extractUrls(content);
 
     // Load initial data and subscribe to changes
     useEffect(() => {
@@ -29,63 +33,23 @@ export function SharedNotepad() {
             }
         };
         ensureDocExists();
-
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                // Only update if we are not currently typing (simple conflict avoidance)
-                // Ideally we'd use a more complex OT/CRDT but for a simple shared notepad this might suffice
-                // or we just update it. Let's update it but maybe check if focused?
-                // Actually for a simple "everyone edits" real-time, just taking the latest is standard for simple apps,
-                // but it might overwrite local changes if typing fast.
-                // Let's just set content. The user will see updates.
-                const newContent = doc.data().content || "";
-                // To avoid cursor jumping or overwriting active typing, we could check difference
-                // But for now let's just sync.
-                if (document.activeElement !== textareaRef.current) {
-                    setContent(newContent);
-                } else {
-                    // If user is typing, we might have a conflict. 
-                    // For this simple request, we will prioritize local edits but maybe show a "remote changes" indicator?
-                    // Or simpler: just let the debounce save overwrite. 
-                    // Actually, if we don't update while typing, we miss other's edits.
-                    // Let's try to be smart: if the content is vastly different, update. 
-                    // For now, let's just update state. React might handle the cursor okay if we are careful.
-                    // Actually, setting value on a focused textarea often moves cursor to end.
-                    // Let's rely on the debounce save to push changes, and only pull if we are not the one saving?
-                    // No, that's hard to track.
-
-                    // Let's stick to: Update local state from DB only if it's different.
-                    if (newContent !== content) {
-                        // If the difference is just what we typed, don't overwrite?
-                        // This is hard without a library like Yjs.
-                        // Let's just accept that last write wins and we might overwrite each other.
-                        // We will NOT update the text area from DB if the user is typing (focused) to prevent interruptions.
-                        // This means you won't see other's changes while you type, until you blur or stop.
-                        // That's a fair trade-off for a simple feature.
-                    }
-                }
-            }
-        });
-
-        return () => unsubscribe();
     }, [isOpen]);
 
-    // Separate effect for non-focused updates to avoid stale closures if we used the callback above
+    // Effect for real-time updates when not actively typing
     useEffect(() => {
         if (!isOpen) return;
         const docRef = doc(db, "system", "shared_notepad");
-        const unsubscribe = onSnapshot(docRef, (doc) => {
-            if (doc.exists()) {
-                const newContent = doc.data().content || "";
-                // Only update if the textarea is NOT focused, OR if the content is empty (initial load)
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const newContent = docSnap.data().content || "";
+                // Only update if the textarea is NOT focused or content is empty
                 if (document.activeElement !== textareaRef.current || content === "") {
                     setContent(newContent);
                 }
             }
         });
         return () => unsubscribe();
-    }, [isOpen]);
-
+    }, [isOpen, content]);
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const newContent = e.target.value;
@@ -118,24 +82,87 @@ export function SharedNotepad() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[90vw] max-w-none h-[90vh] flex flex-col overflow-hidden">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center justify-between">
-                        <span>Shared Notepad</span>
+                <DialogHeader className="shrink-0 pb-2 border-b border-slate-700">
+                    <DialogTitle className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xl font-bold">Shared Notepad</span>
+                            <div className="flex items-center bg-[#1e1e24] p-1 rounded-lg border border-slate-700">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode("edit")}
+                                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                        viewMode === "edit"
+                                            ? "bg-[#2d936c] text-white shadow-sm"
+                                            : "text-slate-400 hover:text-white"
+                                    }`}
+                                >
+                                    <PenLine className="w-3.5 h-3.5" />
+                                    Düzenle
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode("preview")}
+                                    className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                        viewMode === "preview"
+                                            ? "bg-[#2d936c] text-white shadow-sm"
+                                            : "text-slate-400 hover:text-white"
+                                    }`}
+                                >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    Önizleme {detectedUrls.length > 0 && `(${detectedUrls.length} link)`}
+                                </button>
+                            </div>
+                        </div>
                         <span className="text-xs font-normal text-slate-400 mr-8">
-                            {isSaving ? "Saving..." : "All changes saved"}
+                            {isSaving ? "Kaydediliyor..." : "Tüm değişiklikler kaydedildi"}
                         </span>
                     </DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 mt-4 min-h-0">
-                    <Textarea
-                        ref={textareaRef}
-                        value={content}
-                        onChange={handleChange}
-                        className="w-full h-full bg-[#1e1e24] border-slate-600 resize-none text-lg leading-relaxed p-4 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
-                        placeholder="Type something here... Everyone can see this."
-                    />
+
+                {/* Quick Link Chips */}
+                {detectedUrls.length > 0 && (
+                    <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-2 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
+                        <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
+                            Linkler ({detectedUrls.length}):
+                        </span>
+                        <div className="flex items-center gap-2 overflow-x-auto">
+                            {detectedUrls.map((url, i) => (
+                                <a
+                                    key={i}
+                                    href={formatHref(url)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
+                                >
+                                    <span className="truncate max-w-[200px]">{url}</span>
+                                    <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex-1 mt-2 min-h-0 overflow-hidden">
+                    {viewMode === "edit" ? (
+                        <Textarea
+                            ref={textareaRef}
+                            value={content}
+                            onChange={handleChange}
+                            className="w-full h-full bg-[#1e1e24] border-slate-600 resize-none text-lg leading-relaxed p-4 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                            placeholder="Buraya bir şeyler yazın... Herkes bu notu görebilir. Eklediğiniz linkler tıklanabilir olacaktır."
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-lg leading-relaxed">
+                            {content.trim() ? (
+                                <LinkifiedText text={content} />
+                            ) : (
+                                <p className="text-slate-500 italic">Henüz not eklenmedi.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
     );
 }
+

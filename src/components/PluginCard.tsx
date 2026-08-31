@@ -106,22 +106,21 @@ export function PluginCard({ plugin, currentUser, isAdmin = false }: PluginCardP
     });
 
     let totalProgressSum = 0;
-    const activeMembersCount = members.length;
+    let membersWithTasksCount = 0;
 
-    if (activeMembersCount > 0) {
-        members.forEach(member => {
-            const memberTodosList = memberTodos[member.uid] || [];
-            const memberTotal = memberTodosList.length;
-            const memberCompleted = memberTodosList.filter(t => t.completed).length;
+    members.forEach(member => {
+        const memberTodosList = memberTodos[member.uid] || [];
+        const memberTotal = memberTodosList.length;
+        const memberCompleted = memberTodosList.filter(t => t.completed).length;
 
-            if (memberTotal > 0) {
-                totalProgressSum += (memberCompleted / memberTotal);
-            }
-        });
-    }
+        if (memberTotal > 0) {
+            totalProgressSum += (memberCompleted / memberTotal);
+            membersWithTasksCount++;
+        }
+    });
 
-    const progress = activeMembersCount > 0
-        ? Math.round((totalProgressSum / activeMembersCount) * 100)
+    const progress = membersWithTasksCount > 0
+        ? Math.round((totalProgressSum / membersWithTasksCount) * 100)
         : 0;
 
     const total = todos.length;
