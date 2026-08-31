@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
 import { formatSavedDuration } from "@/lib/timeFormatting";
-import { LinkifiedText, extractUrls, formatHref } from "@/components/LinkifiedText";
+import { LinkifiedText } from "@/components/LinkifiedText";
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -125,15 +125,12 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     // Personal Notes State
     const [isNotesOpen, setIsNotesOpen] = useState(false);
     const [notes, setNotes] = useState("");
-    const [notesViewMode, setNotesViewMode] = useState<"edit" | "preview">("edit");
+    const [notesViewMode, setNotesViewMode] = useState<"edit" | "preview" | "split">("preview");
     const [savingNotes, setSavingNotes] = useState(false);
-
-    const detectedPersonalUrls = extractUrls(notes);
-    const detectedTodoUrls = extractUrls(todoNotes);
 
     // Fetch notes when dialog opens
     const handleOpenNotes = async () => {
-        setNotesViewMode(isCurrentUser ? "edit" : "preview");
+        setNotesViewMode(isCurrentUser ? "split" : "preview");
         setIsNotesOpen(true);
         try {
             const noteDoc = await import("firebase/firestore").then(mod => mod.getDoc(mod.doc(db, "plugins", pluginId, "notes", userId)));
@@ -253,23 +250,23 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
 
             {/* Personal Notes Dialog */}
             <Dialog open={isNotesOpen} onOpenChange={setIsNotesOpen}>
-                <DialogContent className="w-full max-w-4xl min-w-[50vw] h-[80vh] flex flex-col bg-[#2b2b30] border-slate-600 text-white overflow-hidden">
-                    <DialogHeader className="shrink-0 pb-2 border-b border-slate-700">
-                        <DialogTitle className="flex items-center justify-between">
+                <DialogContent className="w-full max-w-5xl min-w-[50vw] h-[85vh] flex flex-col bg-[#2b2b30] border-slate-600 text-white overflow-hidden">
+                    <DialogHeader className="shrink-0 pb-3 border-b border-slate-700">
+                        <DialogTitle className="flex flex-wrap items-center justify-between gap-3">
                             <span className="text-xl font-bold">{userName}&apos;un Notları</span>
                             {isCurrentUser && (
                                 <div className="flex items-center bg-[#1e1e24] p-1 rounded-lg border border-slate-700 mr-8">
                                     <button
                                         type="button"
-                                        onClick={() => setNotesViewMode("edit")}
-                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                                            notesViewMode === "edit"
+                                        onClick={() => setNotesViewMode("split")}
+                                        className={`hidden sm:flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                            notesViewMode === "split"
                                                 ? "bg-[#2d936c] text-white shadow-sm"
                                                 : "text-slate-400 hover:text-white"
                                         }`}
                                     >
                                         <PenLine className="w-3.5 h-3.5" />
-                                        Düzenle
+                                        Yan Yana
                                     </button>
                                     <button
                                         type="button"
@@ -281,38 +278,49 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                         }`}
                                     >
                                         <Eye className="w-3.5 h-3.5" />
-                                        Önizleme {detectedPersonalUrls.length > 0 && `(${detectedPersonalUrls.length})`}
+                                        Önizleme (Linkler)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setNotesViewMode("edit")}
+                                        className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                            notesViewMode === "edit"
+                                                ? "bg-[#2d936c] text-white shadow-sm"
+                                                : "text-slate-400 hover:text-white"
+                                        }`}
+                                    >
+                                        <PenLine className="w-3.5 h-3.5" />
+                                        Sadece Yaz
                                     </button>
                                 </div>
                             )}
                         </DialogTitle>
                     </DialogHeader>
 
-                    {/* Detected Link Chips */}
-                    {detectedPersonalUrls.length > 0 && (
-                        <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-2 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
-                            <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
-                                Linkler ({detectedPersonalUrls.length}):
-                            </span>
-                            <div className="flex items-center gap-2 overflow-x-auto">
-                                {detectedPersonalUrls.map((url, i) => (
-                                    <a
-                                        key={i}
-                                        href={formatHref(url)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
-                                    >
-                                        <span className="truncate max-w-[200px]">{url}</span>
-                                        <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
-                                    </a>
-                                ))}
+                    <div className="flex-1 mt-2 min-h-0 overflow-hidden">
+                        {isCurrentUser && notesViewMode === "split" ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-full">
+                                <div className="flex flex-col h-full min-h-0">
+                                    <span className="text-xs text-slate-400 font-medium mb-1 pl-1">Düzenle (Yazın)</span>
+                                    <Textarea
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="Buraya kişisel çalışma notlarınızı yazın..."
+                                        className="w-full flex-1 resize-none p-4 text-sm md:text-base bg-[#1e1e24] border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                                    />
+                                </div>
+                                <div className="flex flex-col h-full min-h-0">
+                                    <span className="text-xs text-slate-400 font-medium mb-1 pl-1">Canlı Görünüm & Tıklanabilir Mavi Linkler</span>
+                                    <div className="w-full flex-1 bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-sm md:text-base leading-relaxed">
+                                        {notes.trim() ? (
+                                            <LinkifiedText text={notes} />
+                                        ) : (
+                                            <p className="text-slate-500 italic">Önizleme burada görünecektir.</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
-
-                    <div className="flex-1 py-3 min-h-0 overflow-hidden">
-                        {isCurrentUser && notesViewMode === "edit" ? (
+                        ) : isCurrentUser && notesViewMode === "edit" ? (
                             <Textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
@@ -329,7 +337,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                             </div>
                         )}
                     </div>
-                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-700 shrink-0">
+                    <div className="flex justify-end gap-2 pt-3 border-t border-slate-700 shrink-0">
                         <Button variant="outline" onClick={() => setIsNotesOpen(false)} className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white">Kapat</Button>
                         {isCurrentUser && (
                             <Button onClick={handleSaveNotes} disabled={savingNotes} className="bg-[#2d936c] hover:bg-[#237a58] text-white">
@@ -376,29 +384,6 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                             )}
                         </DialogTitle>
                     </DialogHeader>
-
-                    {/* Detected Link Chips for Todo */}
-                    {detectedTodoUrls.length > 0 && (
-                        <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-1.5 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
-                            <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
-                                Linkler ({detectedTodoUrls.length}):
-                            </span>
-                            <div className="flex items-center gap-2 overflow-x-auto">
-                                {detectedTodoUrls.map((url, i) => (
-                                    <a
-                                        key={i}
-                                        href={formatHref(url)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2 py-0.5 rounded-full whitespace-nowrap transition-colors"
-                                    >
-                                        <span className="truncate max-w-[160px]">{url}</span>
-                                        <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-70" />
-                                    </a>
-                                ))}
-                            </div>
-                        </div>
-                    )}
 
                     <div className="py-2 flex-1 min-h-[160px] max-h-[50vh] overflow-y-auto">
                         {isCurrentUser && todoNotesViewMode === "edit" ? (

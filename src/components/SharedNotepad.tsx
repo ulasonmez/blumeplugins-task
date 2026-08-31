@@ -6,18 +6,16 @@ import { db } from "@/lib/firebase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { NotebookPen, PenLine, Eye, ExternalLink } from "lucide-react";
-import { LinkifiedText, extractUrls, formatHref } from "@/components/LinkifiedText";
+import { NotebookPen, PenLine, Eye, Columns } from "lucide-react";
+import { LinkifiedText } from "@/components/LinkifiedText";
 
 export function SharedNotepad() {
     const [content, setContent] = useState("");
     const [isOpen, setIsOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
+    const [viewMode, setViewMode] = useState<"edit" | "preview" | "split">("edit");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const detectedUrls = extractUrls(content);
 
     // Load initial data and subscribe to changes
     useEffect(() => {
@@ -82,7 +80,7 @@ export function SharedNotepad() {
                 </Button>
             </DialogTrigger>
             <DialogContent className="bg-[#2b2b30] border-slate-600 text-white w-[90vw] max-w-none h-[90vh] flex flex-col overflow-hidden">
-                <DialogHeader className="shrink-0 pb-2 border-b border-slate-700">
+                <DialogHeader className="shrink-0 pb-3 border-b border-slate-700">
                     <DialogTitle className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <span className="text-xl font-bold">Shared Notepad</span>
@@ -109,7 +107,19 @@ export function SharedNotepad() {
                                     }`}
                                 >
                                     <Eye className="w-3.5 h-3.5" />
-                                    Önizleme {detectedUrls.length > 0 && `(${detectedUrls.length} link)`}
+                                    Önizleme (Linkler)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode("split")}
+                                    className={`hidden md:flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                                        viewMode === "split"
+                                            ? "bg-[#2d936c] text-white shadow-sm"
+                                            : "text-slate-400 hover:text-white"
+                                    }`}
+                                >
+                                    <Columns className="w-3.5 h-3.5" />
+                                    Yan Yana
                                 </button>
                             </div>
                         </div>
@@ -119,40 +129,19 @@ export function SharedNotepad() {
                     </DialogTitle>
                 </DialogHeader>
 
-                {/* Quick Link Chips */}
-                {detectedUrls.length > 0 && (
-                    <div className="shrink-0 flex items-center gap-2 overflow-x-auto py-2 px-1 border-b border-slate-700/60 bg-[#1e1e24]/60 rounded-md mt-2">
-                        <span className="text-xs font-semibold text-[#a8e6cf] whitespace-nowrap pl-1">
-                            Linkler ({detectedUrls.length}):
-                        </span>
-                        <div className="flex items-center gap-2 overflow-x-auto">
-                            {detectedUrls.map((url, i) => (
-                                <a
-                                    key={i}
-                                    href={formatHref(url)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs bg-[#2b2b30] hover:bg-[#383840] border border-slate-600 text-slate-200 hover:text-[#a8e6cf] px-2.5 py-1 rounded-full whitespace-nowrap transition-colors"
-                                >
-                                    <span className="truncate max-w-[200px]">{url}</span>
-                                    <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex-1 mt-2 min-h-0 overflow-hidden">
-                    {viewMode === "edit" ? (
+                <div className="flex-1 mt-3 min-h-0 overflow-hidden">
+                    {viewMode === "edit" && (
                         <Textarea
                             ref={textareaRef}
                             value={content}
                             onChange={handleChange}
-                            className="w-full h-full bg-[#1e1e24] border-slate-600 resize-none text-lg leading-relaxed p-4 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
-                            placeholder="Buraya bir şeyler yazın... Herkes bu notu görebilir. Eklediğiniz linkler tıklanabilir olacaktır."
+                            className="w-full h-full bg-[#1e1e24] border-slate-600 resize-none text-base md:text-lg leading-relaxed p-4 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                            placeholder="Buraya bir şeyler yazın... Herkes bu notu görebilir. Eklediğiniz tüm linkler mavi ve tıklanabilir olacaktır."
                         />
-                    ) : (
-                        <div className="w-full h-full bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-lg leading-relaxed">
+                    )}
+
+                    {viewMode === "preview" && (
+                        <div className="w-full h-full bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-base md:text-lg leading-relaxed">
                             {content.trim() ? (
                                 <LinkifiedText text={content} />
                             ) : (
@@ -160,9 +149,35 @@ export function SharedNotepad() {
                             )}
                         </div>
                     )}
+
+                    {viewMode === "split" && (
+                        <div className="grid grid-cols-2 gap-3 h-full">
+                            <div className="flex flex-col h-full min-h-0">
+                                <span className="text-xs text-slate-400 font-medium mb-1 pl-1">Düzenleme</span>
+                                <Textarea
+                                    ref={textareaRef}
+                                    value={content}
+                                    onChange={handleChange}
+                                    className="w-full flex-1 bg-[#1e1e24] border-slate-600 resize-none text-sm md:text-base leading-relaxed p-4 focus-visible:ring-1 focus-visible:ring-[#2d936c]"
+                                    placeholder="Buraya bir şeyler yazın..."
+                                />
+                            </div>
+                            <div className="flex flex-col h-full min-h-0">
+                                <span className="text-xs text-slate-400 font-medium mb-1 pl-1">Canlı Önizleme & Mavi Linkler</span>
+                                <div className="w-full flex-1 bg-[#1e1e24] border border-slate-600 rounded-md p-4 overflow-y-auto text-sm md:text-base leading-relaxed">
+                                    {content.trim() ? (
+                                        <LinkifiedText text={content} />
+                                    ) : (
+                                        <p className="text-slate-500 italic">Önizleme için metin girin.</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
     );
 }
+
 
