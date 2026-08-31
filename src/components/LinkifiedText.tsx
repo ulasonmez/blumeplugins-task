@@ -15,7 +15,7 @@ export function formatHref(url: string): string {
 }
 
 interface Token {
-    type: "md_link" | "url" | "bold" | "code";
+    type: "image" | "md_link" | "url" | "bold" | "code";
     startIndex: number;
     endIndex: number;
     text: string;
@@ -27,10 +27,26 @@ export function LinkifiedText({ text, className, showIcon = true }: LinkifiedTex
 
     const tokens: Token[] = [];
 
-    // 1. Markdown Links: [Anchor Text](https://url or www.url)
-    const mdLinkRegex = /\[([^\]\n]+)\]\(((?:https?:\/\/|www\.)[^\s)]+)\)/gi;
+    // 1. Markdown Images: ![Alt](https://url or www.url)
+    const imgRegex = /!\[([^\]\n]*)\]\(((?:https?:\/\/|www\.)[^\s)]+)\)/gi;
     let match: RegExpExecArray | null;
+    while ((match = imgRegex.exec(text)) !== null) {
+        tokens.push({
+            type: "image",
+            startIndex: match.index,
+            endIndex: match.index + match[0].length,
+            text: match[1] || "Image",
+            url: formatHref(match[2])
+        });
+    }
+
+    // 2. Markdown Links: [Anchor Text](https://url or www.url)
+    const mdLinkRegex = /\[([^\]\n]+)\]\(((?:https?:\/\/|www\.)[^\s)]+)\)/gi;
     while ((match = mdLinkRegex.exec(text)) !== null) {
+        // Skip if this was part of an image tag ![]()
+        if (match.index > 0 && text[match.index - 1] === "!") {
+            continue;
+        }
         tokens.push({
             type: "md_link",
             startIndex: match.index,
@@ -40,7 +56,7 @@ export function LinkifiedText({ text, className, showIcon = true }: LinkifiedTex
         });
     }
 
-    // 2. Raw URLs: https://... or http://... or www....
+    // 3. Raw URLs: https://... or http://... or www....
     const urlRegex = /(?:https?:\/\/|www\.)[^\s<>"'`]+[^\s<>"'`,:;.)\]!?]/gi;
     while ((match = urlRegex.exec(text)) !== null) {
         tokens.push({
@@ -52,7 +68,7 @@ export function LinkifiedText({ text, className, showIcon = true }: LinkifiedTex
         });
     }
 
-    // 3. Markdown Bold: **text**
+    // 4. Markdown Bold: **text**
     const boldRegex = /\*\*([^*\n]+)\*\*/g;
     while ((match = boldRegex.exec(text)) !== null) {
         tokens.push({
@@ -63,7 +79,7 @@ export function LinkifiedText({ text, className, showIcon = true }: LinkifiedTex
         });
     }
 
-    // 4. Markdown Inline Code: `code`
+    // 5. Markdown Inline Code: `code`
     const codeRegex = /`([^`\n]+)`/g;
     while ((match = codeRegex.exec(text)) !== null) {
         tokens.push({
@@ -95,7 +111,21 @@ export function LinkifiedText({ text, className, showIcon = true }: LinkifiedTex
             elements.push(text.substring(currentIndex, token.startIndex));
         }
 
-        if (token.type === "md_link" || token.type === "url") {
+        if (token.type === "image") {
+            elements.push(
+                <span key={`img-${i}-${token.startIndex}`} className="block my-2">
+                    <a href={token.url} target="_blank" rel="noopener noreferrer" className="inline-block">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={token.url}
+                            alt={token.text}
+                            className="max-w-full max-h-80 rounded-lg border border-slate-700 bg-black/40 object-contain hover:opacity-90 transition-opacity"
+                            loading="lazy"
+                        />
+                    </a>
+                </span>
+            );
+        } else if (token.type === "md_link" || token.type === "url") {
             elements.push(
                 <a
                     key={`link-${i}-${token.startIndex}`}
