@@ -75,7 +75,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
     const handleDelete = async () => {
         if (!isOwner || deleting) return;
         
-        if (activeTimer && activeTimer.todoId === todo.id) {
+        if (activeTimer && activeTimer.pluginId === pluginId && activeTimer.todoId === todo.id) {
             toast("Bu görevde şu an çalışan bir sayacınız var. Lütfen önce sayacı durdurun.");
             return;
         }
@@ -130,56 +130,124 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
         }
     };
 
-    // Timecode parsing
+    // Timecode and URL parsing
     const renderText = (text: string) => {
-        // Regex for mm:ss or m:ss
-        const regex = /\b(\d{1,2}):([0-5]\d)\b/g;
-        const parts = [];
-        let lastIndex = 0;
+        // Combined tokens: timecode or url
+        interface Token {
+            type: "timecode" | "url";
+            startIndex: number;
+            endIndex: number;
+            text: string;
+            extra?: number; // total seconds for timecode
+        }
+
+        const tokens: Token[] = [];
+
+        // Find timecodes
+        const timecodeRegex = /\b(\d{1,2}):([0-5]\d)\b/g;
         let match;
-
-        while ((match = regex.exec(text)) !== null) {
-            // Add text before match
-            if (match.index > lastIndex) {
-                parts.push(text.substring(lastIndex, match.index));
-            }
-
-            // Add clickable timecode
-            const timeString = match[0];
+        while ((match = timecodeRegex.exec(text)) !== null) {
             const minutes = parseInt(match[1], 10);
             const seconds = parseInt(match[2], 10);
-            const totalSeconds = minutes * 60 + seconds;
-
-            parts.push(
-                <button
-                    key={match.index}
-                    onClick={() => {
-                        // Construct URL with timestamp
-                        const url = new URL(videoUrl);
-                        url.searchParams.set("t", totalSeconds.toString());
-                        window.open(url.toString(), "_blank");
-                    }}
-                    className="text-blue-600 underline hover:text-blue-800 font-medium mx-1"
-                >
-                    {timeString}
-                </button>
-            );
-
-            lastIndex = regex.lastIndex;
+            tokens.push({
+                type: "timecode",
+                startIndex: match.index,
+                endIndex: match.index + match[0].length,
+                text: match[0],
+                extra: minutes * 60 + seconds
+            });
         }
 
-        // Add remaining text
-        if (lastIndex < text.length) {
-            parts.push(text.substring(lastIndex));
+        // Find URLs
+        const urlRegex = /(?:https?:\/\/|www\.)[^\s<>"'`]+[^\s<>"'`,:;.)\]!?]/gi;
+        while ((match = urlRegex.exec(text)) !== null) {
+            tokens.push({
+                type: "url",
+                startIndex: match.index,
+                endIndex: match.index + match[0].length,
+                text: match[0]
+            });
         }
 
-        return parts.length > 0 ? parts : text;
+        if (tokens.length === 0) return text;
+
+        // Sort tokens by startIndex and remove overlaps
+        tokens.sort((a, b) => a.startIndex - b.startIndex);
+        const nonOverlapping: Token[] = [];
+        let lastEnd = 0;
+        for (const token of tokens) {
+            if (token.startIndex >= lastEnd) {
+                nonOverlapping.push(token);
+                lastEnd = token.endIndex;
+            }
+        }
+
+        const parts: (string | React.ReactNode)[] = [];
+        let currentIndex = 0;
+
+        for (let i = 0; i < nonOverlapping.length; i++) {
+            const token = nonOverlapping[i];
+            if (token.startIndex > currentIndex) {
+                parts.push(text.substring(currentIndex, token.startIndex));
+            }
+
+            if (token.type === "timecode") {
+                parts.push(
+                    <button
+                        key={`tc-${i}-${token.startIndex}`}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            try {
+                                const url = new URL(videoUrl);
+                                url.searchParams.set("t", (token.extra ?? 0).toString());
+                                window.open(url.toString(), "_blank");
+                            } catch {
+                                window.open(videoUrl, "_blank");
+                            }
+                        }}
+                        className="text-blue-400 underline hover:text-blue-300 font-medium mx-1"
+                    >
+                        {token.text}
+                    </button>
+                );
+            } else if (token.type === "url") {
+                const href = token.text.startsWith("http://") || token.text.startsWith("https://")
+                    ? token.text
+                    : `https://${token.text}`;
+                parts.push(
+                    <a
+                        key={`url-${i}-${token.startIndex}`}
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[#a8e6cf] hover:text-[#2d936c] underline mx-1 font-medium break-all"
+                    >
+                        {token.text}
+                    </a>
+                );
+            }
+
+            currentIndex = token.endIndex;
+        }
+
+        if (currentIndex < text.length) {
+            parts.push(text.substring(currentIndex));
+        }
+
+        return parts;
     };
+
+    const isThisTimerActive = Boolean(
+        activeTimer && 
+        activeTimer.pluginId === pluginId && 
+        activeTimer.todoId === todo.id
+    );
 
     return (
         <div className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", 
             todo.completed && "bg-black/20",
-            (activeTimer && activeTimer.todoId === todo.id) && "border-[#2d936c]/50 bg-[#2d936c]/5"
+            isThisTimerActive && "border-[#2d936c]/50 bg-[#2d936c]/5"
         )}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
@@ -280,7 +348,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 }).format(date);
-                            } catch (e) {
+                            } catch {
                                 return "";
                             }
                         })()}

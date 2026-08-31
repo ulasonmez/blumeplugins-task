@@ -294,28 +294,24 @@ export default function PluginDetailsPage() {
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
-    // Calculate progress based on members
-    // Each member contributes equally to the total progress (100% / members.length)
+    // Calculate progress based on members who have tasks
+    // Each member with tasks contributes equally to the total progress (100% / membersWithTasksCount)
     let totalProgressSum = 0;
-    const activeMembersCount = members.length;
+    let membersWithTasksCount = 0;
 
-    if (activeMembersCount > 0) {
-        members.forEach(member => {
-            const memberTodosList = memberTodos[member.uid] || [];
-            const memberTotal = memberTodosList.length;
-            const memberCompleted = memberTodosList.filter(t => t.completed).length;
+    members.forEach(member => {
+        const memberTodosList = memberTodos[member.uid] || [];
+        const memberTotal = memberTodosList.length;
+        const memberCompleted = memberTodosList.filter(t => t.completed).length;
 
-            if (memberTotal > 0) {
-                totalProgressSum += (memberCompleted / memberTotal);
-            } else {
-                // If a member has no todos, they contribute 0 to the progress
-                totalProgressSum += 0;
-            }
-        });
-    }
+        if (memberTotal > 0) {
+            totalProgressSum += (memberCompleted / memberTotal);
+            membersWithTasksCount++;
+        }
+    });
 
-    const progressPercentage = activeMembersCount > 0
-        ? Math.round((totalProgressSum / activeMembersCount) * 100)
+    const progressPercentage = membersWithTasksCount > 0
+        ? Math.round((totalProgressSum / membersWithTasksCount) * 100)
         : 0;
         
     const groupedLogs = logs.reduce((groups: any, log: any) => {
