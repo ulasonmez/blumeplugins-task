@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,14 +8,52 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { TodoItem } from "./TodoItem";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, doc, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, StickyNote, Copy, Pencil, Eye, ExternalLink } from "lucide-react";
+import { Plus, StickyNote, Copy, Pencil, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
 import { formatSavedDuration } from "@/lib/timeFormatting";
 import { LinkifiedText } from "@/components/LinkifiedText";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+
+export function sortTodos<T extends { order?: number; createdAt?: unknown }>(todoList: T[]): T[] {
+    return [...todoList].sort((a, b) => {
+        const orderA = typeof a.order === "number" ? a.order : null;
+        const orderB = typeof b.order === "number" ? b.order : null;
+        if (orderA !== null && orderB !== null) {
+            return orderA - orderB;
+        }
+        if (orderA !== null) return -1;
+        if (orderB !== null) return 1;
+
+        const getMillis = (val: unknown): number => {
+            if (!val) return 0;
+            const maybeObj = val as { toMillis?: () => number; toDate?: () => Date; seconds?: number };
+            if (typeof maybeObj.toMillis === "function") return maybeObj.toMillis();
+            if (typeof maybeObj.toDate === "function") return maybeObj.toDate().getTime();
+            if (typeof maybeObj.seconds === "number") return maybeObj.seconds * 1000;
+            if (val instanceof Date) return val.getTime();
+            return 0;
+        };
+        return getMillis(a.createdAt) - getMillis(b.createdAt);
+    });
+}
 
 interface UserTodoSectionProps {
     pluginId: string;
@@ -26,12 +64,14 @@ interface UserTodoSectionProps {
         text: string;
         completed: boolean;
         completedAt?: unknown;
+        createdAt?: unknown;
         createdByUid: string;
         notes?: string;
         totalTrackedSeconds?: number;
         timerTrackedSeconds?: number;
         manualTrackedSeconds?: number;
         firstStartedAt?: unknown;
+        order?: number;
     }>;
     currentUserId: string;
     currentUserName?: string;
@@ -58,8 +98,74 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     const [savingTodoNotes, setSavingTodoNotes] = useState(false);
 
     const isCurrentUser = userId === currentUserId;
-    const total = todos.length;
-    const done = todos.filter(t => t.completed).length;
+    const dndId = useId();
+    const [isMounted, setIsMounted] = useState(false);
+    const [items, setItems] = useState(() => sortTodos(todos));
+    const [isDragging, setIsDragging] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isDragging) {
+            setItems(sortTodos(todos));
+        }
+    }, [todos, isDragging]);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 3,
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragStart = () => {
+        setIsDragging(true);
+    };
+
+    const handleDragCancel = () => {
+        setIsDragging(false);
+    };
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        setIsDragging(false);
+        const { active, over } = event;
+        if (!over || active.id === over.id || !isCurrentUser) return;
+
+        const oldIndex = items.findIndex((t) => t.id === active.id);
+        const newIndex = items.findIndex((t) => t.id === over.id);
+        if (oldIndex === -1 || newIndex === -1) return;
+
+        const newItems = arrayMove(items, oldIndex, newIndex);
+        setItems(newItems);
+
+        try {
+            const batch = writeBatch(db);
+            let hasChanges = false;
+            newItems.forEach((item, index) => {
+                if (item.order !== index) {
+                    hasChanges = true;
+                    const todoRef = doc(db, "plugins", pluginId, "todos", item.id);
+                    batch.update(todoRef, { order: index });
+                }
+            });
+
+            if (hasChanges) {
+                await batch.commit();
+            }
+        } catch (error) {
+            console.error("Error updating todo order:", error);
+            setItems(sortTodos(todos));
+        }
+    };
+
+    const total = items.length;
+    const done = items.filter(t => t.completed).length;
     const percent = total === 0 ? 0 : Math.round((done / total) * 100);
 
     // Scope active timer duration to this specific user AND this specific plugin
@@ -68,8 +174,8 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         activeTimer.userId === userId &&
         activeTimer.pluginId === pluginId
     );
-    const totalTrackedSeconds = todos.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (isTimerForThisPluginAndUser ? (elapsedSeconds ?? 0) : 0);
-    const completedWithoutTimeCount = todos.filter(t => t.completed && (t.totalTrackedSeconds ?? 0) === 0).length;
+    const totalTrackedSeconds = items.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (isTimerForThisPluginAndUser ? (elapsedSeconds ?? 0) : 0);
+    const completedWithoutTimeCount = items.filter(t => t.completed && (t.totalTrackedSeconds ?? 0) === 0).length;
 
     const handleAddTodo = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -85,6 +191,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 createdAt: serverTimestamp(),
                 completedAt: null,
                 notes: "",
+                order: items.length,
             });
             
             // Log the action
@@ -185,8 +292,8 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         if (selectedTodosToCopy.length === 0) return;
         setCopyingTodos(true);
         try {
-            const todosToCopy = todos.filter(t => selectedTodosToCopy.includes(t.id));
-            const promises = todosToCopy.map(todo =>
+            const todosToCopy = items.filter(t => selectedTodosToCopy.includes(t.id));
+            const promises = todosToCopy.map((todo, idx) =>
                 addDoc(collection(db, "plugins", pluginId, "todos"), {
                     text: todo.text,
                     createdByUid: currentUserId,
@@ -195,6 +302,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                     createdAt: serverTimestamp(),
                     completedAt: null,
                     notes: "",
+                    order: items.length + idx,
                 })
             );
             await Promise.all(promises);
@@ -469,24 +577,59 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 <div className="p-2 md:p-4 space-y-3">
                     <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 
-                    <div className="space-y-1">
-                        {todos.map(todo => (
-                            <TodoItem
-                                key={todo.id}
-                                pluginId={pluginId}
-                                todo={todo}
-                                currentUserId={currentUserId}
-                                currentUserName={currentUserName}
-                                videoUrl={videoUrl}
-                                onOpenNotes={handleOpenTodoNotes}
-                                activeTimer={activeTimer}
-                                elapsedSeconds={elapsedSeconds}
-                            />
-                        ))}
-                        {todos.length === 0 && (
-                            <p className="text-xs text-slate-400 italic text-center py-2">No tasks yet</p>
-                        )}
-                    </div>
+                    {isMounted && isCurrentUser ? (
+                        <DndContext
+                            id={dndId}
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDragCancel={handleDragCancel}
+                        >
+                            <SortableContext
+                                items={items.map((t) => t.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                <div className="space-y-1">
+                                    {items.map(todo => (
+                                        <TodoItem
+                                            key={todo.id}
+                                            pluginId={pluginId}
+                                            todo={todo}
+                                            currentUserId={currentUserId}
+                                            currentUserName={currentUserName}
+                                            videoUrl={videoUrl}
+                                            onOpenNotes={handleOpenTodoNotes}
+                                            activeTimer={activeTimer}
+                                            elapsedSeconds={elapsedSeconds}
+                                        />
+                                    ))}
+                                    {items.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic text-center py-2">No tasks yet</p>
+                                    )}
+                                </div>
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
+                        <div className="space-y-1">
+                            {items.map(todo => (
+                                <TodoItem
+                                    key={todo.id}
+                                    pluginId={pluginId}
+                                    todo={todo}
+                                    currentUserId={currentUserId}
+                                    currentUserName={currentUserName}
+                                    videoUrl={videoUrl}
+                                    onOpenNotes={handleOpenTodoNotes}
+                                    activeTimer={activeTimer}
+                                    elapsedSeconds={elapsedSeconds}
+                                />
+                            ))}
+                            {items.length === 0 && (
+                                <p className="text-xs text-slate-400 italic text-center py-2">No tasks yet</p>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

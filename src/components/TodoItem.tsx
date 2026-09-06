@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Trash2, StickyNote, Pencil } from "lucide-react";
+import { Trash2, StickyNote, Pencil, GripVertical } from "lucide-react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logPluginAction } from "@/lib/logger";
@@ -11,6 +11,8 @@ import { completeTodoWithTimerCheck, deleteTodoSafely } from "@/lib/timeTracking
 import { cn } from "@/lib/utils";
 import { TodoTimer } from "./TodoTimer";
 import { toast } from "@/components/Toaster";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TodoItemProps {
     pluginId: string;
@@ -25,6 +27,7 @@ interface TodoItemProps {
         timerTrackedSeconds?: number;
         manualTrackedSeconds?: number;
         firstStartedAt?: unknown;
+        order?: number;
     };
     currentUserId: string;
     currentUserName?: string;
@@ -38,6 +41,24 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
     const isOwner = todo.createdByUid === currentUserId;
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: todo.id, disabled: !isOwner });
+
+    const style: React.CSSProperties = {
+        transform: transform
+            ? CSS.Translate.toString({ ...transform, x: 0 })
+            : undefined,
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        position: isDragging ? "relative" : undefined,
+    };
 
     // Edit state
     const [isEditing, setIsEditing] = useState(false);
@@ -245,12 +266,30 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
     );
 
     return (
-        <div className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", 
-            todo.completed && "bg-black/20",
-            isThisTimerActive && "border-[#2d936c]/50 bg-[#2d936c]/5"
-        )}>
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", 
+                todo.completed && "bg-black/20",
+                isThisTimerActive && "border-[#2d936c]/50 bg-[#2d936c]/5",
+                isDragging && "opacity-75 shadow-2xl bg-[#1e1e24] border-[#2d936c] ring-1 ring-[#2d936c]/50 scale-[1.01]"
+            )}
+        >
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
+                    {isOwner && (
+                        <button
+                            type="button"
+                            {...attributes}
+                            {...listeners}
+                            className="p-1 -ml-1 text-slate-500 hover:text-slate-200 cursor-grab active:cursor-grabbing shrink-0 opacity-40 group-hover:opacity-100 transition-opacity focus:outline-none touch-none"
+                            title="Sürükleyip sırasını değiştirin"
+                            aria-label="Görevi taşı"
+                        >
+                            <GripVertical className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+
                     <Checkbox
                         checked={todo.completed}
                         onCheckedChange={handleToggle}
