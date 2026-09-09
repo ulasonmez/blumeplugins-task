@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, collection, query, orderBy, onSnapshot, setDoc, serverTimestamp, getDocs, where, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -77,19 +77,32 @@ export default function PluginDetailsPage() {
 
             // Check membership
             const memberRecord = membersData.find(m => m.uid === user.uid);
-            const isUserAdmin = user.displayName === "Ulas" || user.displayName === "Emir";
-            const isUserMember = !!memberRecord || isUserAdmin;
+            const isSuperAdmin = user.displayName === "Ulas";
+            const isUserAdmin = isSuperAdmin || user.displayName === "Emir";
+            const isUserMember = !!memberRecord || isSuperAdmin;
             setIsMember(isUserMember);
-            setIsOwner(memberRecord?.role === "owner" || isUserAdmin);
+            setIsOwner(isSuperAdmin || (isUserAdmin && !!memberRecord) || memberRecord?.role === "owner");
 
             // Legacy migration: If no members exist but user is creator, add them as owner
             if (membersData.length === 0 && plugin && plugin.createdByUid === user.uid) {
                 console.log("Migrating legacy plugin: Adding creator as owner");
                 await setDoc(doc(db, "plugins", id as string, "members", user.uid), {
+                    uid: user.uid,
                     displayName: user.displayName,
                     role: "owner",
                     joinedAt: serverTimestamp(),
                 });
+                await updateDoc(doc(db, "plugins", id as string), {
+                    memberUids: [user.uid],
+                });
+            } else if (membersData.length > 0) {
+                // Ensure memberUids array is present and synced
+                const currentUids = membersData.map(m => m.uid);
+                if (!plugin?.memberUids || plugin.memberUids.length !== currentUids.length) {
+                    updateDoc(doc(db, "plugins", id as string), {
+                        memberUids: currentUids,
+                    }).catch(console.error);
+                }
             }
 
             setLoading(false);
@@ -175,9 +188,15 @@ export default function PluginDetailsPage() {
 
             // Add to members subcollection
             await setDoc(doc(db, "plugins", id as string, "members", userToAdd.id), {
+                uid: userToAdd.id,
                 displayName: userData.displayName,
                 role: "member",
                 joinedAt: serverTimestamp(),
+            });
+
+            // Keep memberUids array on plugin doc in sync
+            await updateDoc(doc(db, "plugins", id as string), {
+                memberUids: arrayUnion(userToAdd.id),
             });
 
             setNewMemberName("");
@@ -195,6 +214,9 @@ export default function PluginDetailsPage() {
         if (confirm("Are you sure you want to remove this member?")) {
             try {
                 await deleteDoc(doc(db, "plugins", id as string, "members", memberUid));
+                await updateDoc(doc(db, "plugins", id as string), {
+                    memberUids: arrayRemove(memberUid),
+                });
             } catch (error) {
                 console.error("Error removing member:", error);
                 toast("Failed to remove member. You might not have permission.");

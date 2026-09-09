@@ -11,6 +11,18 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    // Helper function to check if user is SuperAdmin (Ulas)
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.displayName == "Ulas";
+    }
+
+    // Helper alias for Ulas
+    function isUlas() {
+      return isSuperAdmin();
+    }
+
     // Helper function to check if user is Admin (Ulas or Emir)
     function isAdmin() {
       return isAuthenticated() && 
@@ -65,25 +77,28 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         isCreator(pluginId) || 
         isPluginOwner(pluginId) || 
-        isAdmin() ||
+        isSuperAdmin() ||
+        (isAdmin() && isMember(pluginId)) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate', 'endDate']) ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['endDate']) ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['startDate']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['order']) ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberUids'])
       );
-      allow delete: if isAuthenticated() && (isCreator(pluginId) || isPluginOwner(pluginId) || isAdmin());
+      allow delete: if isAuthenticated() && (isCreator(pluginId) || isPluginOwner(pluginId) || isSuperAdmin() || (isAdmin() && isMember(pluginId)));
 
       // Members subcollection
       match /members/{memberUid} {
         // Any authenticated user should be able to read the member list to do client-side membership checks
         allow read: if isAuthenticated(); 
-        // Only owner (or creator during setup) can write/add members
-        allow write: if isPluginOwner(pluginId) || isCreator(pluginId) || isAdmin();
+        // Only owner, creator, superadmin, or admin member can write/add members
+        allow write: if isPluginOwner(pluginId) || isCreator(pluginId) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
       }
 
       // Todos subcollection
       match /todos/{todoId} {
-        // Only members can read/write todos
-        allow read: if isMember(pluginId) || isAdmin();
+        // Only members or superadmin can read todos
+        allow read: if isMember(pluginId) || isSuperAdmin();
         
         function validAggregates(res) {
            return (!res.keys().hasAll(['totalTrackedSeconds']) || (res.totalTrackedSeconds is number && res.totalTrackedSeconds >= 0)) &&
@@ -92,41 +107,38 @@ service cloud.firestore {
                   (!res.keys().hasAll(['timeEntryCount']) || (res.timeEntryCount is number && res.timeEntryCount >= 0));
         }
         
-        allow create: if (isMember(pluginId) && request.resource.data.createdByUid == request.auth.uid && validAggregates(request.resource.data)) || isAdmin();
-        allow update: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid && request.resource.data.createdByUid == resource.data.createdByUid && validAggregates(request.resource.data)) || isAdmin();
-        allow delete: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid) || isAdmin();
+        allow create: if (isMember(pluginId) && request.resource.data.createdByUid == request.auth.uid && validAggregates(request.resource.data)) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
+        allow update: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid && request.resource.data.createdByUid == resource.data.createdByUid && validAggregates(request.resource.data)) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
+        allow delete: if (isMember(pluginId) && resource.data.createdByUid == request.auth.uid) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
 
         match /timeEntries/{entryId} {
-           allow read: if isMember(pluginId) || isAdmin();
-           // Only task owner can add time entries or admin
-           allow create: if (isMember(pluginId) && request.resource.data.userId == request.auth.uid && get(/databases/$(database)/documents/plugins/$(pluginId)/todos/$(todoId)).data.createdByUid == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isAdmin();
-           allow update: if (isMember(pluginId) && resource.data.userId == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isAdmin();
-           allow delete: if (isMember(pluginId) && resource.data.userId == request.auth.uid) || isAdmin();
+           allow read: if isMember(pluginId) || isSuperAdmin();
+           // Only task owner can add time entries, or superadmin, or admin member
+           allow create: if (isMember(pluginId) && request.resource.data.userId == request.auth.uid && get(/databases/$(database)/documents/plugins/$(pluginId)/todos/$(todoId)).data.createdByUid == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
+           allow update: if (isMember(pluginId) && resource.data.userId == request.auth.uid && request.resource.data.durationSeconds is number && request.resource.data.durationSeconds >= 0) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
+           allow delete: if (isMember(pluginId) && resource.data.userId == request.auth.uid) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
         }
       }
 
       // Notes subcollection
       match /notes/{uid} {
-        // Only members can read notes (or maybe just the owner of the note?)
-        // Requirement: "UI da sadece onları render eder" -> implies visibility control
-        // Let's say members can read, but only owner of note can write
-        allow read: if isMember(pluginId) || isAdmin();
-        allow write: if (isMember(pluginId) && isOwner(uid)) || isAdmin();
+        allow read: if isMember(pluginId) || isSuperAdmin();
+        allow write: if (isMember(pluginId) && isOwner(uid)) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
       }
 
       // Messages subcollection (Chat)
       match /messages/{messageId} {
-        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isAdmin();
+        allow read, write: if isMember(pluginId) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
       }
 
       // Files subcollection
       match /files/{fileId} {
-        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isAdmin();
+        allow read, write: if isMember(pluginId) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
       }
 
       // Logs subcollection
       match /logs/{logId} {
-        allow read, write: if isMember(pluginId) || isCreator(pluginId) || isAdmin();
+        allow read, write: if isMember(pluginId) || isSuperAdmin() || (isAdmin() && isMember(pluginId));
       }
     }
 
