@@ -24,9 +24,10 @@ interface PluginCardProps {
     };
     currentUser: User;
     isAdmin?: boolean;
+    isSuperAdmin?: boolean;
 }
 
-export function PluginCard({ plugin, currentUser, isAdmin = false }: PluginCardProps) {
+export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin = false }: PluginCardProps) {
     const router = useRouter();
     const [todos, setTodos] = useState<any[]>([]);
     const [members, setMembers] = useState<any[]>([]);
@@ -148,7 +149,7 @@ export function PluginCard({ plugin, currentUser, isAdmin = false }: PluginCardP
                     )}
 
                     {/* Admin Actions Overlay */}
-                    {isAdmin && (
+                    {(isAdmin || isSuperAdmin) && (
                         <div className="absolute top-2 left-2 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsEditOpen(true); }}

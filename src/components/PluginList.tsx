@@ -27,12 +27,14 @@ interface PluginListProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: any[];
     isAdmin?: boolean;
+    isSuperAdmin?: boolean;
+    canReorder?: boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onReorder?: (plugins: any[]) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, currentUser: User, isAdmin: boolean }) {
+function SortablePluginItem({ plugin, currentUser, isAdmin, isSuperAdmin, canReorder }: { plugin: any, currentUser: User, isAdmin: boolean, isSuperAdmin: boolean, canReorder: boolean }) {
     const {
         attributes,
         listeners,
@@ -40,7 +42,7 @@ function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, cur
         transform,
         transition,
         isDragging
-    } = useSortable({ id: plugin.id, disabled: !isAdmin });
+    } = useSortable({ id: plugin.id, disabled: !canReorder });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -53,18 +55,19 @@ function SortablePluginItem({ plugin, currentUser, isAdmin }: { plugin: any, cur
             style={style}
             {...attributes}
             {...listeners}
-            className={`h-full w-full transition-shadow ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "z-50 shadow-2xl rounded-lg bg-[#1e1e24] ring-2 ring-[#2d936c] scale-105 opacity-80 relative" : ""}`}
+            className={`h-full w-full transition-shadow ${canReorder ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "z-50 shadow-2xl rounded-lg bg-[#1e1e24] ring-2 ring-[#2d936c] scale-105 opacity-80 relative" : ""}`}
         >
             <PluginCard
                 plugin={plugin}
                 currentUser={currentUser}
                 isAdmin={isAdmin}
+                isSuperAdmin={isSuperAdmin}
             />
         </div>
     );
 }
 
-export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }: PluginListProps) {
+export function PluginList({ currentUser, plugins, isAdmin = false, isSuperAdmin = false, canReorder = false, onReorder }: PluginListProps) {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -125,6 +128,8 @@ export function PluginList({ currentUser, plugins, isAdmin = false, onReorder }:
                             plugin={plugin}
                             currentUser={currentUser}
                             isAdmin={isAdmin}
+                            isSuperAdmin={isSuperAdmin}
+                            canReorder={canReorder}
                         />
                     ))}
                 </div>

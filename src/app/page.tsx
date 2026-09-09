@@ -18,7 +18,8 @@ import Link from "next/link";
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
-  const isAdmin = user?.displayName === "Ulas" || user?.displayName === "Emir";
+  const isSuperAdmin = user?.displayName === "Ulas";
+  const isAdmin = isSuperAdmin || user?.displayName === "Emir";
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -26,6 +27,7 @@ export default function Home() {
   const [newPluginVideo, setNewPluginVideo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [plugins, setPlugins] = useState<any[]>([]);
+  const [memberPluginIds, setMemberPluginIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -34,7 +36,49 @@ export default function Home() {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-  const filteredPlugins = plugins.filter(plugin =>
+
+  // Track which plugins the current user is a member of (if not superadmin)
+  useEffect(() => {
+    if (!user || isSuperAdmin || plugins.length === 0) {
+      return;
+    }
+
+    const unsubs: (() => void)[] = [];
+
+    plugins.forEach((plugin) => {
+      const memberDocRef = doc(db, "plugins", plugin.id, "members", user.uid);
+      const unsub = onSnapshot(memberDocRef, (snap) => {
+        setMemberPluginIds((prev) => {
+          const next = new Set(prev);
+          if (snap.exists()) {
+            next.add(plugin.id);
+          } else {
+            next.delete(plugin.id);
+          }
+          return next;
+        });
+      }, (err) => {
+        console.error("Error checking plugin membership:", err);
+      });
+      unsubs.push(unsub);
+    });
+
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [user, isSuperAdmin, plugins]);
+
+  const isUserMemberOfPlugin = (plugin: any) => {
+    if (isSuperAdmin) return true;
+    if (plugin.memberUids && Array.isArray(plugin.memberUids) && plugin.memberUids.includes(user?.uid)) {
+      return true;
+    }
+    return memberPluginIds.has(plugin.id);
+  };
+
+  const visiblePlugins = isSuperAdmin ? plugins : plugins.filter(isUserMemberOfPlugin);
+
+  const filteredPlugins = visiblePlugins.filter(plugin =>
     plugin.name.toLowerCase().includes(debouncedQuery.toLowerCase())
   );
 
@@ -74,7 +118,7 @@ export default function Home() {
   }, [router]);
 
   const handleReorder = async (reorderedPlugins: any[]) => {
-    if (!isAdmin) return;
+    if (!isSuperAdmin) return;
     
     // Optimistic update
     setPlugins(reorderedPlugins);
@@ -110,6 +154,7 @@ export default function Home() {
         description: null,
         createdByUid: user.uid,
         createdByName: user.displayName,
+        memberUids: [user.uid],
         createdAt: serverTimestamp(),
       });
 
@@ -151,7 +196,19 @@ export default function Home() {
               Roleplay Mods
             </Link>
           )}
-          <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
+            {isSuperAdmin && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold tracking-wide shadow-sm">
+                Superadmin
+              </span>
+            )}
+            {!isSuperAdmin && isAdmin && (
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-semibold tracking-wide shadow-sm">
+                Admin
+              </span>
+            )}
+          </div>
           <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout" className="text-slate-400 hover:text-white hover:bg-transparent">
             <LogOut className="w-6 h-6" />
           </Button>
@@ -220,7 +277,14 @@ export default function Home() {
           </div>
         </div>
 
-        <PluginList currentUser={user} plugins={filteredPlugins} isAdmin={isAdmin} onReorder={handleReorder} />
+        <PluginList
+          currentUser={user}
+          plugins={filteredPlugins}
+          isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
+          canReorder={isSuperAdmin}
+          onReorder={handleReorder}
+        />
       </main>
     </div>
   );
