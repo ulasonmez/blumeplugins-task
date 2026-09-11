@@ -40,7 +40,7 @@ export default function PluginDetailsPage() {
     const [addMemberError, setAddMemberError] = useState("");
 
     // Time tracking
-    const { activeTimer, elapsedSeconds } = useActiveTimer(user?.uid);
+    const { activeTimer, elapsedSeconds } = useActiveTimer(user?.uid, id as string);
     const [isTimeReportOpen, setIsTimeReportOpen] = useState(false);
 
     useEffect(() => {

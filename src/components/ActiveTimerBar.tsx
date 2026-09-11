@@ -42,13 +42,13 @@ export function ActiveTimerBar({
         }
     }, [isLongTimer, activeTimer, recoveryOpen]);
 
-    if (!activeTimer) return null;
+    if (!activeTimer || activeTimer.pluginId !== currentPluginId) return null;
 
     const handlePause = async () => {
         if (actionLoading) return;
         setActionLoading(true);
         try {
-            await pauseTimer(currentUserId);
+            await pauseTimer(currentUserId, activeTimer.pluginId);
         } catch (e: any) {
             toast(e.message);
         } finally {
@@ -75,13 +75,8 @@ export function ActiveTimerBar({
     };
 
     const navigateToTask = () => {
-        if (activeTimer.pluginId !== currentPluginId) {
-            router.push(`/plugin/${activeTimer.pluginId}`);
-        } else {
-             // Scroll to task if in same plugin, basic implementation
-             const el = document.getElementById(`todo-${activeTimer.todoId}`);
-             if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
+        const el = document.getElementById(`todo-${activeTimer.todoId}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     };
 
     const handleRecoverySubmit = async () => {
@@ -128,9 +123,6 @@ export function ActiveTimerBar({
                     <button onClick={navigateToTask} className="text-sm font-semibold text-white hover:underline text-left truncate max-w-[150px] md:max-w-[250px]">
                         {activeTimer.todoText}
                     </button>
-                    {activeTimer.pluginId !== currentPluginId && (
-                        <span className="text-[10px] text-slate-400 truncate max-w-[150px]">{activeTimer.pluginName}</span>
-                    )}
                 </div>
 
                 <div className="flex flex-col items-center justify-center mx-4">

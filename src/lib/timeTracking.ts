@@ -19,24 +19,36 @@ export async function startTimer(
     todoText: string
 ) {
     await runTransaction(db, async (transaction) => {
-        const activeTimerRef = doc(db, "activeTimers", uid);
+        const activeTimerRef = doc(db, "activeTimers", `${uid}_${pluginId}`);
+        const legacyActiveTimerRef = doc(db, "activeTimers", uid);
         const todoRef = doc(db, "plugins", pluginId, "todos", todoId);
         
         // --- READ PHASE ---
         const activeTimerDoc = await transaction.get(activeTimerRef);
+        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
         const todoDoc = await transaction.get(todoRef);
         
         if (!todoDoc.exists()) {
             throw new Error("Task bulunamadı.");
         }
         
+        let targetTimerDoc = activeTimerDoc.exists() ? activeTimerDoc : null;
+        let isLegacy = false;
+        if (!targetTimerDoc && legacyActiveTimerDoc.exists()) {
+            const legData = legacyActiveTimerDoc.data() as ActiveTimer;
+            if (legData.pluginId === pluginId) {
+                targetTimerDoc = legacyActiveTimerDoc;
+                isLegacy = true;
+            }
+        }
+
         let oldTodoDoc = null;
         let oldTimeEntryDoc = null;
         let oldTodoRef = null;
         let oldTimeEntryRef = null;
 
-        if (activeTimerDoc.exists()) {
-            const data = activeTimerDoc.data() as ActiveTimer;
+        if (targetTimerDoc && targetTimerDoc.exists()) {
+            const data = targetTimerDoc.data() as ActiveTimer;
             if (data.pluginId === pluginId && data.todoId === todoId) {
                 return; // Idempotent
             }
@@ -50,7 +62,7 @@ export async function startTimer(
                                    startDate.getFullYear() !== nowDate.getFullYear();
                                    
             if (nowMs - startedAtMs > 8 * 3600 * 1000 || isDifferentDay) {
-                throw new Error(`Başka bir task ("${data.todoText}") üzerinde çok uzun süredir veya dünden açık kalan bir sayaç var. Lütfen ekranın altındaki uyarıyı kullanarak onu kapatın veya kurtarın.`);
+                throw new Error(`Bu pluginde başka bir task ("${data.todoText}") üzerinde çok uzun süredir veya dünden açık kalan bir sayaç var. Lütfen ekranın altındaki uyarıyı kullanarak onu kapatın veya kurtarın.`);
             }
 
             oldTodoRef = doc(db, "plugins", data.pluginId, "todos", data.todoId);
@@ -70,7 +82,7 @@ export async function startTimer(
         
         const now = Timestamp.now();
         
-        if (activeTimerDoc.exists() && oldTodoDoc && oldTodoDoc.exists() && oldTimeEntryRef) {
+        if (targetTimerDoc && targetTimerDoc.exists() && oldTodoDoc && oldTodoDoc.exists() && oldTimeEntryRef) {
             let oldDuration = 0;
             if (oldTimeEntryDoc && oldTimeEntryDoc.exists()) {
                 const oldTimeEntryData = oldTimeEntryDoc.data() as TimeEntry;
@@ -105,6 +117,10 @@ export async function startTimer(
             }
         }
         
+        if (isLegacy) {
+            transaction.delete(legacyActiveTimerRef);
+        }
+
         const timeEntryRef = doc(collection(db, "plugins", pluginId, "todos", todoId, "timeEntries"));
         
         const timeEntry: TimeEntry = {
@@ -155,25 +171,38 @@ export async function startTimer(
     try { await logPluginAction(pluginId, "started_todo_timer", todoText, uid, userName); } catch(e) { console.error(e); }
 }
 
-export async function pauseTimer(uid: string) {
+export async function pauseTimer(uid: string, pluginId?: string) {
     let completedTodoData: { pluginId: string, todoText: string } | null = null;
 
     await runTransaction(db, async (transaction) => {
-        const activeTimerRef = doc(db, "activeTimers", uid);
-        const activeTimerDoc = await transaction.get(activeTimerRef);
+        const activeTimerRef = pluginId ? doc(db, "activeTimers", `${uid}_${pluginId}`) : null;
+        const legacyActiveTimerRef = doc(db, "activeTimers", uid);
 
-        if (!activeTimerDoc.exists()) {
+        const activeTimerDoc = activeTimerRef ? await transaction.get(activeTimerRef) : null;
+        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
+
+        let targetTimerDoc = (activeTimerDoc && activeTimerDoc.exists()) ? activeTimerDoc : null;
+        let isLegacy = false;
+        if (!targetTimerDoc && legacyActiveTimerDoc.exists()) {
+            const legData = legacyActiveTimerDoc.data() as ActiveTimer;
+            if (!pluginId || legData.pluginId === pluginId) {
+                targetTimerDoc = legacyActiveTimerDoc;
+                isLegacy = true;
+            }
+        }
+
+        if (!targetTimerDoc || !targetTimerDoc.exists()) {
             throw new Error("Aktif sayaç bulunamadı.");
         }
 
-        const activeTimer = activeTimerDoc.data() as ActiveTimer;
+        const activeTimer = targetTimerDoc.data() as ActiveTimer;
         
         const todoRef = doc(db, "plugins", activeTimer.pluginId, "todos", activeTimer.todoId);
         const todoDoc = await transaction.get(todoRef);
         
         if (!todoDoc.exists()) {
             // Task deleted but timer remained. Just clear timer.
-            transaction.delete(activeTimerRef);
+            transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef!);
             throw new Error("Task bulunamadı. Sayaç silindi.");
         }
 
@@ -200,7 +229,7 @@ export async function pauseTimer(uid: string) {
              durationSeconds = Math.max(0, Math.floor((now.toMillis() - activeTimer.startedAt.toMillis()) / 1000));
              const entry: TimeEntry = {
                 userId: uid,
-                userName: "Unknown", // Can't fetch from here easily, but we'll recover what we can
+                userName: "Unknown",
                 source: "timer",
                 status: "completed",
                 startedAt: activeTimer.startedAt,
@@ -226,7 +255,7 @@ export async function pauseTimer(uid: string) {
             lastTrackedAt: now
         });
 
-        transaction.delete(activeTimerRef);
+        transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef!);
         
         completedTodoData = {
             pluginId: activeTimer.pluginId,
@@ -248,14 +277,27 @@ export async function stopAndAddManualTime(
     isCancel: boolean = false
 ) {
     await runTransaction(db, async (transaction) => {
-        const activeTimerRef = doc(db, "activeTimers", uid);
-        const activeTimerDoc = await transaction.get(activeTimerRef);
+        const activeTimerRef = doc(db, "activeTimers", `${uid}_${pluginId}`);
+        const legacyActiveTimerRef = doc(db, "activeTimers", uid);
 
-        if (!activeTimerDoc.exists()) {
+        const activeTimerDoc = await transaction.get(activeTimerRef);
+        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
+
+        let targetTimerDoc = activeTimerDoc.exists() ? activeTimerDoc : null;
+        let isLegacy = false;
+        if (!targetTimerDoc && legacyActiveTimerDoc.exists()) {
+            const legData = legacyActiveTimerDoc.data() as ActiveTimer;
+            if (legData.pluginId === pluginId) {
+                targetTimerDoc = legacyActiveTimerDoc;
+                isLegacy = true;
+            }
+        }
+
+        if (!targetTimerDoc || !targetTimerDoc.exists()) {
             return; // Already stopped
         }
 
-        const activeTimer = activeTimerDoc.data() as ActiveTimer;
+        const activeTimer = targetTimerDoc.data() as ActiveTimer;
         
         if (activeTimer.pluginId !== pluginId || activeTimer.todoId !== todoId) {
              throw new Error("Active timer mismatch");
@@ -269,7 +311,7 @@ export async function stopAndAddManualTime(
         
         if (isCancel) {
             transaction.delete(timeEntryRef);
-            transaction.delete(activeTimerRef);
+            transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef);
             return; // Cancelled
         }
         
@@ -302,8 +344,7 @@ export async function stopAndAddManualTime(
              transaction.delete(timeEntryRef);
         }
         
-        
-        transaction.delete(activeTimerRef);
+        transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef);
     });
     
     if (isCancel) {
@@ -380,8 +421,11 @@ export async function completeTodoWithTimerCheck(
     userName: string
 ) {
     await runTransaction(db, async (transaction) => {
-        const activeTimerRef = doc(db, "activeTimers", uid);
+        const activeTimerRef = doc(db, "activeTimers", `${uid}_${pluginId}`);
+        const legacyActiveTimerRef = doc(db, "activeTimers", uid);
+        
         const activeTimerDoc = await transaction.get(activeTimerRef);
+        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
         
         const todoRef = doc(db, "plugins", pluginId, "todos", todoId);
         const todoDoc = await transaction.get(todoRef);
@@ -392,8 +436,18 @@ export async function completeTodoWithTimerCheck(
         let durationSeconds = 0;
         let closedTimer = false;
         
-        if (activeTimerDoc.exists()) {
-            const activeTimer = activeTimerDoc.data() as ActiveTimer;
+        let targetTimerDoc = activeTimerDoc.exists() ? activeTimerDoc : null;
+        let isLegacy = false;
+        if (!targetTimerDoc && legacyActiveTimerDoc.exists()) {
+            const legData = legacyActiveTimerDoc.data() as ActiveTimer;
+            if (legData.pluginId === pluginId) {
+                targetTimerDoc = legacyActiveTimerDoc;
+                isLegacy = true;
+            }
+        }
+
+        if (targetTimerDoc && targetTimerDoc.exists()) {
+            const activeTimer = targetTimerDoc.data() as ActiveTimer;
             // If the active timer belongs to this task, close it
             if (activeTimer.pluginId === pluginId && activeTimer.todoId === todoId) {
                 const timeEntryRef = doc(db, "plugins", pluginId, "todos", todoId, "timeEntries", activeTimer.timeEntryId);
@@ -413,7 +467,7 @@ export async function completeTodoWithTimerCheck(
                      });
                 }
                 
-                transaction.delete(activeTimerRef);
+                transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef);
                 closedTimer = true;
             }
         }

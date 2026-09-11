@@ -59,7 +59,7 @@ export function TodoTimer({
 
         try {
             if (isThisTimerActive) {
-                await pauseTimer(currentUserId);
+                await pauseTimer(currentUserId, pluginId);
             } else {
                 await startTimer(
                     currentUserId,
