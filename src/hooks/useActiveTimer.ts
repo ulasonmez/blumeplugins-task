@@ -11,7 +11,7 @@ interface UseActiveTimerResult {
     isLoading: boolean;
 }
 
-export function useActiveTimer(uid: string | undefined): UseActiveTimerResult {
+export function useActiveTimer(uid: string | undefined, pluginId?: string): UseActiveTimerResult {
     const [activeTimer, setActiveTimer] = useState<(ActiveTimer & { id: string }) | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -25,17 +25,45 @@ export function useActiveTimer(uid: string | undefined): UseActiveTimerResult {
             return;
         }
 
+        const timerDocId = pluginId ? `${uid}_${pluginId}` : uid;
+        const timerRef = doc(db, "activeTimers", timerDocId);
+
         const unsubscribe = onSnapshot(
-            doc(db, "activeTimers", uid),
+            timerRef,
             (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data() as ActiveTimer;
                     setActiveTimer({ id: docSnap.id, ...data });
+                    setIsLoading(false);
+                } else if (pluginId) {
+                    // Check legacy doc keyed by uid for backward compatibility
+                    docSnap.ref.firestore ? 
+                        import("firebase/firestore").then(({ getDoc, doc }) => {
+                            getDoc(doc(db, "activeTimers", uid)).then((legacySnap) => {
+                                if (legacySnap.exists()) {
+                                    const legacyData = legacySnap.data() as ActiveTimer;
+                                    if (legacyData.pluginId === pluginId) {
+                                        setActiveTimer({ id: legacySnap.id, ...legacyData });
+                                    } else {
+                                        setActiveTimer(null);
+                                        setElapsedSeconds(0);
+                                    }
+                                } else {
+                                    setActiveTimer(null);
+                                    setElapsedSeconds(0);
+                                }
+                                setIsLoading(false);
+                            }).catch(() => {
+                                setActiveTimer(null);
+                                setElapsedSeconds(0);
+                                setIsLoading(false);
+                            });
+                        }) : null;
                 } else {
                     setActiveTimer(null);
                     setElapsedSeconds(0);
+                    setIsLoading(false);
                 }
-                setIsLoading(false);
             },
             (error) => {
                 console.error("Error listening to active timer:", error);
@@ -44,7 +72,7 @@ export function useActiveTimer(uid: string | undefined): UseActiveTimerResult {
         );
 
         return () => unsubscribe();
-    }, [uid]);
+    }, [uid, pluginId]);
 
     useEffect(() => {
         if (!activeTimer?.startedAt) {

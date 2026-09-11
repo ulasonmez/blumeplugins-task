@@ -63,11 +63,21 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
     }
 
-    // activeTimers collection
-    match /activeTimers/{uid} {
-      allow read: if isAuthenticated() && request.auth.uid == uid;
-      allow create, update: if isAuthenticated() && request.auth.uid == uid && request.resource.data.userId == uid && (!request.resource.data.keys().hasAll(['baseTrackedSeconds']) || (request.resource.data.baseTrackedSeconds is number && request.resource.data.baseTrackedSeconds >= 0));
-      allow delete: if isAuthenticated() && request.auth.uid == uid;
+    // activeTimers collection (supports timerId as uid or uid_pluginId)
+    match /activeTimers/{timerId} {
+      allow read: if isAuthenticated() && (
+        timerId == request.auth.uid || 
+        timerId.matches('^' + request.auth.uid + '_.*') ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+      allow create, update: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid && 
+        (!request.resource.data.keys().hasAll(['baseTrackedSeconds']) || (request.resource.data.baseTrackedSeconds is number && request.resource.data.baseTrackedSeconds >= 0));
+      allow delete: if isAuthenticated() && (
+        timerId == request.auth.uid || 
+        timerId.matches('^' + request.auth.uid + '_.*') ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
     }
 
     // Plugins collection
