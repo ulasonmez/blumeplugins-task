@@ -378,30 +378,34 @@ export default function PluginDetailsPage() {
     };
 
     return (
-        <div className={cn("h-[100dvh] overflow-hidden bg-[#1e1e24] text-white p-4 md:p-6 flex flex-col", activeTimer ? "pb-24 md:pb-28" : "")}>
+        <div className={cn("min-h-[100dvh] bg-[#1e1e24] text-white p-3 sm:p-4 md:h-[100dvh] md:overflow-hidden md:p-6 md:flex md:flex-col", activeTimer ? "pb-24 md:pb-28" : "pb-6")}>
             {/* Header */}
-            <div className="flex items-center gap-2 md:gap-4 mb-3 md:mb-6 shrink-0">
-                <Button variant="ghost" onClick={() => router.push("/")} className="text-slate-400 hover:text-white p-0 md:p-4 shrink-0">
-                    <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
-                    <span className="hidden md:inline ml-1">Back</span>
-                </Button>
-                <h1 className="text-lg md:text-3xl font-bold text-[#a8e6cf] truncate flex-1 min-w-0">{plugin.name}</h1>
-                <a
-                    href={plugin.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-slate-400 hover:text-[#2d936c] shrink-0"
-                >
-                    <ExternalLink className="w-4 h-4 md:w-6 md:h-6" />
-                </a>
-                <div className="flex items-center gap-2 shrink-0">
-                    <Progress value={progressPercentage} className="w-16 md:w-32 h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
-                    <span className="text-xs font-medium text-slate-400 w-7 text-right">{progressPercentage}%</span>
+            <div className="mb-4 flex flex-col gap-3 rounded-xl border border-slate-700 bg-[#2b2b30] p-3 shadow-sm md:mb-6 md:flex-row md:items-center md:gap-4 md:border-0 md:bg-transparent md:p-0 md:shadow-none shrink-0">
+                <div className="flex min-w-0 items-start gap-2 md:contents">
+                    <Button variant="ghost" onClick={() => router.push("/")} aria-label="Plugin listesine dön" className="text-slate-400 hover:text-white h-9 w-9 p-0 md:h-auto md:w-auto md:p-4 shrink-0">
+                        <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
+                        <span className="hidden md:inline ml-1">Back</span>
+                    </Button>
+                    <h1 className="min-w-0 flex-1 break-words text-xl leading-tight font-bold text-[#a8e6cf] md:truncate md:text-3xl">{plugin.name}</h1>
+                    <a
+                        href={plugin.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Plugin bağlantısını aç"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center text-slate-400 hover:text-[#a8e6cf] md:h-auto md:w-auto"
+                    >
+                        <ExternalLink className="w-5 h-5 md:w-6 md:h-6" />
+                    </a>
                 </div>
+                <div className="flex flex-wrap items-center gap-2 md:contents">
+                    <div className="mr-auto flex min-w-[96px] flex-1 items-center gap-2 md:mr-0 md:flex-none">
+                        <Progress value={progressPercentage} className="h-2 min-w-0 flex-1 bg-slate-700 md:w-32" indicatorClassName="bg-[#2d936c]" />
+                        <span className="min-w-9 text-right text-xs font-medium text-slate-300">{progressPercentage}%</span>
+                    </div>
                 
                 <Dialog open={isLogsOpen} onOpenChange={setIsLogsOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
+                        <Button variant="outline" size="sm" aria-label="İşlem geçmişi" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
                             <ScrollText className="w-4 h-4" />
                             <span className="hidden md:inline ml-2">Logs</span>
                         </Button>
@@ -451,7 +455,7 @@ export default function PluginDetailsPage() {
                 
                 <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
+                        <Button variant="outline" size="sm" aria-label="Üyeleri yönet" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 shrink-0 px-2 md:px-3">
                             <Users className="w-4 h-4" />
                             <span className="hidden md:inline ml-2">{members.length} Members</span>
                         </Button>
@@ -517,10 +521,11 @@ export default function PluginDetailsPage() {
                         <span className="md:hidden">Süreler</span>
                     </Button>
                 )}
+                </div>
             </div>
 
             {/* Date Range Section */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:w-fit gap-2 sm:gap-3 mb-3 md:mb-4 bg-[#2b2b30] p-2 md:p-3 rounded-lg border border-slate-700 shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:w-fit gap-2 sm:gap-3 mb-4 md:mb-4 bg-[#2b2b30] p-3 rounded-xl border border-slate-700 shrink-0">
                 <div className="flex items-center gap-2">
                     <Label htmlFor="startDate" className="text-sm font-medium text-slate-400 whitespace-nowrap w-10">Start:</Label>
                     <Input
@@ -549,7 +554,7 @@ export default function PluginDetailsPage() {
             </div>
 
             {/* Todos Sections - Grid */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 min-h-0 overflow-y-auto pr-2 auto-rows-[70dvh] md:auto-rows-[calc(100dvh-14rem)]">
+            <div className="space-y-4 md:grid md:flex-1 md:min-h-0 md:grid-cols-2 md:content-start md:gap-6 md:space-y-0 md:overflow-y-auto md:pr-2 md:auto-rows-[calc(100dvh-14rem)] lg:grid-cols-3">
                 {members.map(member => (
                     <UserTodoSection
                         key={member.uid}

@@ -316,24 +316,26 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
     };
 
     return (
-        <div className={cn("bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col shadow-lg", className)}>
-            <div className="p-4 flex items-center justify-between border-b border-slate-600 bg-[#2b2b30]">
-                <div className="flex items-center gap-3">
-                    <div className="flex flex-col">
-                        <h4 className="font-bold text-xl text-white">{userName}</h4>
+        <div className={cn("min-w-0 bg-[#2b2b30] rounded-xl border border-slate-600 overflow-hidden flex flex-col shadow-lg", className)}>
+            <div className="border-b border-slate-600 bg-[#2b2b30] p-3 sm:p-4">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                        <h4 className="break-words font-bold text-xl text-white">{userName}</h4>
                         {totalTrackedSeconds > 0 && (
-                            <span className="text-xs text-slate-400">
+                            <span className="block text-xs leading-relaxed text-slate-400">
                                 ⏱ Toplam: {formatSavedDuration(totalTrackedSeconds)}
                                 {completedWithoutTimeCount > 0 && ` · Süresiz: ${completedWithoutTimeCount}`}
                             </span>
                         )}
                     </div>
-                    <Badge variant="secondary" className="bg-[#2d936c] text-white hover:bg-[#237a58]">
-                        {done}/{total}
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="secondary" className="bg-[#2d936c] text-white hover:bg-[#237a58]">
+                            {done}/{total}
+                        </Badge>
+                        <span className="text-lg font-bold text-[#a8e6cf]">{percent}%</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-[#a8e6cf]">{percent}%</span>
+                <div className="mt-3 flex items-center justify-end gap-2 sm:mt-0 sm:pt-2">
                     {!isCurrentUser && (
                         <Button
                             variant="outline"
@@ -343,7 +345,8 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                 setSelectedTodosToCopy(todos.map(t => t.id));
                                 setIsCopyDialogOpen(true);
                             }}
-                            title="Copy Tasks"
+                            title="Görevleri kopyala"
+                            aria-label="Görevleri kopyala"
                         >
                             <Copy className="w-4 h-4" />
                         </Button>
@@ -573,7 +576,7 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 </DialogContent>
             </Dialog>
 
-            <div className="overflow-y-auto bg-[#1e1e24]/30">
+            <div className="bg-[#1e1e24]/30 md:min-h-0 md:overflow-y-auto">
                 <div className="p-2 md:p-4 space-y-3">
                     <Progress value={percent} className="h-2 bg-slate-700" indicatorClassName="bg-[#2d936c]" />
 

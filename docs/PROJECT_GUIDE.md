@@ -58,7 +58,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 | --- | --- | --- |
 | `/auth` | `src/app/auth/page.tsx` | Kullanıcı adı/şifre ile giriş ve kayıt |
 | `/` | `src/app/page.tsx` | Oturum kontrolü, plugin listesi, arama, ekleme ve sıralama |
-| `/plugin/[id]` | `src/app/plugin/[id]/page.tsx` | Üyelik kontrolü, üye görev panelleri, tarihler, loglar, süre raporu ve aktif sayaç |
+| `/plugin/[id]` | `src/app/plugin/[id]/page.tsx` | Üyelik kontrolü, üye görev panelleri, tarihler, loglar, süre raporu ve aktif sayaç; mobilde sayfa boyunca, masaüstünde panel listesinde kaydırma |
 | `/roleplay-mods` | `src/app/roleplay-mods/page.tsx` | Admin video listesi yönetimi |
 | `/roleplay-mods.json` | `src/app/roleplay-mods.json/route.ts` | Herkese açık `GET`; sıralı `{ videos: [...] }` çıktısı |
 | `/api/youtuber-info` | `src/app/api/youtuber-info/route.ts` | `POST { urls: [...] }`; URL'lerden HTML okuyup kanal bilgisi çıkartır |
@@ -74,6 +74,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 ### Görev ve ilerleme
 
 - Detay sayfası görevleri `createdByUid` ile mevcut üyelerin panellerine dağıtır. `UserTodoSection` görev ekler, başka üyelerin görev metinlerini kullanıcının kendi listesine kopyalar, sıralar ve notları yönetir.
+- Mobil plugin detayında başlık ve araçlar ayrı satırlara yerleşir; üye panelleri içerikleri kadar uzar ve sayfa tek bir akışta kayar. `md` ve üzerindeki sütunlu görünümde panel listesi ile görev listeleri kendi alanlarında kayar. Mobil süre raporu değerleri satır kırar ve rapor penceresi dikey kayar.
 - Kopyalama yeni, tamamlanmamış görev üretir; eski notları ve süreleri kopyalamaz. Görev notu todo belgesinde, üye notu ayrı `notes/{uid}` belgesindedir. Üye notları kurallarda diğer üyelere de okunabilir; gizli not olarak varsayma.
 - `TodoItem`, tamamlamayı `completeTodoWithTimerCheck`, silmeyi `deleteTodoSafely` üzerinden yapar. Tekrar açma `completed` / `completedAt` alanlarını günceller. Aktif sayaç varken UI görev silmeyi engeller.
 - Kart ve detay sayfasındaki plugin ilerlemesi, görevi olan mevcut üyelerin tamamlanma oranlarının eşit ağırlıklı ortalamasıdır. Tüm görevlerin tek bir tamamlanma oranı değildir. Bu hesap iki yerde bulunduğundan değişiklikte ikisini de incele.
