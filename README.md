@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Blume Plugins
 
-## Getting Started
+Plugin geliştirme ekipleri için görev, üyelik, not ve çalışma süresi takibi. Next.js App Router, React, TypeScript ve Firebase kullanır. Ayrı Roleplay Mods yönetimi, herkese açık `/roleplay-mods.json` çıktısı sağlar.
 
-First, run the development server:
+## Projeyi anlamak
+
+- [AGENTS.md](AGENTS.md): Yapay zekâ ajanları için sohbet başlangıcı, kod araştırması ve dokümantasyonu güncel tutma kuralları.
+- [Proje rehberi](docs/PROJECT_GUIDE.md): Konu → dosya haritası, mimari, ekran/veri akışları ve doğrulama bilgileri.
+- [Değişiklik günlüğü](docs/CHANGELOG.md): Yapılan değişiklikler ve doğrulama sonuçları.
+
+Codex, bu depoda başlayan oturumlarda kökteki `AGENTS.md` dosyasını başlangıç talimatlarına dahil eder; bu dosya da proje rehberi ve son değişikliklerin okunmasını ister. Keşif davranışı için [resmî AGENTS.md dokümantasyonu](https://learn.chatgpt.com/docs/agent-configuration/agents-md) incelenebilir. Başka bir yapay zekâ aracı bu standardı otomatik okumuyorsa başlangıç talimatına “Önce AGENTS.md dosyasını oku ve uygula” ekle. Bu düzen bir ajan çalışma talimatıdır; arka planda kendi kendine çalışan bir doküman güncelleme servisi değildir.
+
+## Yerel çalıştırma
+
+```bash
+npm ci
+```
+
+`.env.local` dosyasında aşağıdaki Firebase değişkenlerini tanımla; değerleri Git'e ekleme:
+
+```text
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Uygulamayı [localhost:3000](http://localhost:3000) üzerinden aç. Uygulama yapılandırılan Firebase projesine bağlanır; otomatik emülatör bağlantısı yoktur.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Kontroller
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run lint`: ESLint.
+- `npm run build`: Üretim derlemesi; Firebase yapılandırması ve ağ erişimi gerekebilir.
+- `npm start`: Derlenmiş uygulamayı çalıştırır.
+- `npm run test:rules`: Firestore kural testi script'i vardır, fakat mevcut depoda beklediği `test/**/*.test.ts` dosyaları bulunmamaktadır.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Değişiklikten sonra ilgili proje rehberi bölümünü ve değişiklik günlüğünü güncelle. Ayrıntılı çalışma yöntemi [AGENTS.md](AGENTS.md) içindedir.
