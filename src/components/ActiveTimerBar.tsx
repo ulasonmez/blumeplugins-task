@@ -185,7 +185,7 @@ export function ActiveTimerBar({
                         <div className="space-y-2">
                             <Button 
                                 variant={recoveryType === "stop_now" ? "default" : "outline"}
-                                className={cn("w-full justify-start border-slate-600", recoveryType === "stop_now" && "bg-amber-600 hover:bg-amber-700")}
+                                className={cn("h-auto min-h-9 w-full justify-start whitespace-normal text-left border-slate-600 text-white hover:text-white", recoveryType === "stop_now" ? "bg-amber-700 hover:bg-amber-800" : "bg-[#1e1e24] hover:bg-[#383840]")}
                                 onClick={() => setRecoveryType("stop_now")}
                             >
                                 Şimdi durdur (Geçen tüm süreyi kaydet)
@@ -194,7 +194,7 @@ export function ActiveTimerBar({
                             <div className="space-y-2">
                                 <Button 
                                     variant={recoveryType === "custom_time" ? "default" : "outline"}
-                                    className={cn("w-full justify-start border-slate-600", recoveryType === "custom_time" && "bg-[#2d936c] hover:bg-[#237a58]")}
+                                    className={cn("h-auto min-h-9 w-full justify-start whitespace-normal text-left border-slate-600 text-white hover:text-white", recoveryType === "custom_time" ? "bg-[#237a58] hover:bg-[#1b6146]" : "bg-[#1e1e24] hover:bg-[#383840]")}
                                     onClick={() => setRecoveryType("custom_time")}
                                 >
                                     Bitiş zamanını seç
@@ -219,7 +219,7 @@ export function ActiveTimerBar({
 
                             <Button 
                                 variant={recoveryType === "cancel" ? "default" : "outline"}
-                                className={cn("w-full justify-start border-slate-600", recoveryType === "cancel" && "bg-red-600 hover:bg-red-700")}
+                                className={cn("h-auto min-h-9 w-full justify-start whitespace-normal text-left border-slate-600 text-white hover:text-white", recoveryType === "cancel" ? "bg-red-700 hover:bg-red-800" : "bg-[#1e1e24] hover:bg-[#383840]")}
                                 onClick={() => setRecoveryType("cancel")}
                             >
                                 Kaydı iptal et (Süreyi sil)
@@ -227,7 +227,7 @@ export function ActiveTimerBar({
                         </div>
                     </div>
                     <div className="flex justify-between mt-6">
-                        <Button variant="ghost" onClick={() => setRecoveryOpen(false)} className="text-slate-400 hover:text-white">
+                        <Button variant="ghost" onClick={() => setRecoveryOpen(false)} className="text-slate-300 hover:bg-[#383840] hover:text-white">
                             Çalışmaya devam ediyorum
                         </Button>
                         <Button 

@@ -2,6 +2,13 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-10-18 — Unutulan sayaç seçeneklerinin okunurluğu
+
+- Kurtarma penceresindeki üç seçeneğin beyaz zemin üzerinde beyaz görünmesi düzeltildi. Seçilmemiş seçenekler koyu zemin/açık metin, seçili seçenekler yüksek kontrastlı renkli zemin kullanır; hover durumları da okunur kalır. Uzun metinler dar ekranlarda satır kırar. Devam düğmesinin hover zemini de koyulaştırıldı.
+- Dosyalar: `src/components/ActiveTimerBar.tsx`, `docs/PROJECT_GUIDE.md`, `docs/CHANGELOG.md`.
+- Doğrulama: `npx tsc --noEmit`, `npm run build` ve `git diff --check` geçti. Bileşen ESLint kontrolü mevcut dört `any` hatası ve kullanılmayan `router` uyarısı nedeniyle başarısız; bu satırlar değiştirilmedi.
+- Sınır: oturum gerektiren canlı kurtarma penceresinde görsel test yapılmadı. Değişiklik yalnızca stillerdedir; süre hesaplama ve Firebase yazımları aynı kalır.
+
 ## 2026-10-03 — Plugin detayında mobil kullanım düzeni
 
 - Mobil başlık iki satıra ayrıldı; plugin adı için alan açıldı. Üye panellerinin sabit yüksekliği ve iç görev listesi kaydırması mobilde kaldırıldı; sayfa akışında sonraki üyeye geçilebiliyor. Üye başlığı ve süre raporu kartları dar ekranlarda taşmadan okunacak şekilde düzenlendi.
