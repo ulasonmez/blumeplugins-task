@@ -2,6 +2,13 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-10-22 — Dar görev kartlarında metin yerleşimi
+
+- Görev satırındaki ekran genişliğine bağlı yerleşim, kart genişliğini izleyen container query ile değiştirildi. İçerik alanı 28 rem'den dar olduğunda sayaç ve işlem düğmeleri alt satıra geçer; dar üye panellerinde görev metninin harf harf dikey uzaması önlenir. İşlem grubu gerektiğinde kendi içinde de satır kırar.
+- Dosyalar: `src/components/TodoItem.tsx`, `docs/PROJECT_GUIDE.md`, `docs/CHANGELOG.md`.
+- Doğrulama: `npx tsc --noEmit`, `npx eslint src/components/TodoItem.tsx`, `npm run build` ve `git diff --check` geçti. Üretim CSS çıktısında 28 rem container query kuralları doğrulandı.
+- Sınır: oturum gerektiren canlı görev listesinde görsel test yapılmadı; değişiklik yalnızca yerleşim sınıflarını etkiler.
+
 ## 2026-10-18 — Unutulan sayaç seçeneklerinin okunurluğu
 
 - Kurtarma penceresindeki üç seçeneğin beyaz zemin üzerinde beyaz görünmesi düzeltildi. Seçilmemiş seçenekler koyu zemin/açık metin, seçili seçenekler yüksek kontrastlı renkli zemin kullanır; hover durumları da okunur kalır. Uzun metinler dar ekranlarda satır kırar. Devam düğmesinin hover zemini de koyulaştırıldı.

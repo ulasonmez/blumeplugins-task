@@ -75,6 +75,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 
 - Detay sayfası görevleri `createdByUid` ile mevcut üyelerin panellerine dağıtır. `UserTodoSection` görev ekler, başka üyelerin görev metinlerini kullanıcının kendi listesine kopyalar, sıralar ve notları yönetir.
 - Mobil plugin detayında başlık ve araçlar ayrı satırlara yerleşir; üye panelleri içerikleri kadar uzar ve sayfa tek bir akışta kayar. `md` ve üzerindeki sütunlu görünümde panel listesi ile görev listeleri kendi alanlarında kayar. Mobil süre raporu değerleri satır kırar ve rapor penceresi dikey kayar.
+- Görev satırları ekran yerine kendi kart genişliğine göre düzenlenir (`TodoItem` container query). Kartın içerik alanı 28 rem'den darsa sayaç ve işlem düğmeleri metnin altına geçer; böylece masaüstündeki dar üye panellerinde de metin harf harf sıkışmaz.
 - Kopyalama yeni, tamamlanmamış görev üretir; eski notları ve süreleri kopyalamaz. Görev notu todo belgesinde, üye notu ayrı `notes/{uid}` belgesindedir. Üye notları kurallarda diğer üyelere de okunabilir; gizli not olarak varsayma.
 - `TodoItem`, tamamlamayı `completeTodoWithTimerCheck`, silmeyi `deleteTodoSafely` üzerinden yapar. Tekrar açma `completed` / `completedAt` alanlarını günceller. Aktif sayaç varken UI görev silmeyi engeller.
 - Kart ve detay sayfasındaki plugin ilerlemesi, görevi olan mevcut üyelerin tamamlanma oranlarının eşit ağırlıklı ortalamasıdır. Tüm görevlerin tek bir tamamlanma oranı değildir. Bu hesap iki yerde bulunduğundan değişiklikte ikisini de incele.

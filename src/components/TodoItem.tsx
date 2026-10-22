@@ -269,14 +269,14 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
         <div
             ref={setNodeRef}
             style={style}
-            className={cn("p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]", 
+            className={cn("@container p-2 rounded-md bg-[#2b2b30] hover:bg-[#323238] transition-colors group border border-transparent hover:border-slate-600 min-h-[40px]",
                 todo.completed && "bg-black/20",
                 isThisTimerActive && "border-[#2d936c]/50 bg-[#2d936c]/5",
                 isDragging && "opacity-75 shadow-2xl bg-[#1e1e24] border-[#2d936c] ring-1 ring-[#2d936c]/50 scale-[1.01]"
             )}
         >
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <div className="flex items-start sm:items-center gap-2 flex-1 min-w-0">
+            <div className="flex flex-col @[28rem]:flex-row @[28rem]:items-center gap-2">
+                <div className="flex items-start @[28rem]:items-center gap-2 flex-1 min-w-0">
                     {isOwner && (
                         <button
                             type="button"
@@ -294,7 +294,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                         checked={todo.completed}
                         onCheckedChange={handleToggle}
                         disabled={!isOwner || toggling}
-                        className={cn("mt-1 sm:mt-0 h-4 w-4 shrink-0 border-slate-400 bg-slate-800/50 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
+                        className={cn("mt-1 @[28rem]:mt-0 h-4 w-4 shrink-0 border-slate-400 bg-slate-800/50 data-[state=checked]:bg-[#2d936c] data-[state=checked]:border-[#2d936c]", !isOwner && "opacity-50 cursor-not-allowed")}
                     />
 
                     <div className="flex-1 min-w-0">
@@ -324,7 +324,7 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                     </div>
                 </div>
                 
-                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 justify-end sm:shrink-0 pl-6 sm:pl-0 mt-1 sm:mt-0">
+                <div className="flex flex-wrap items-center gap-2 justify-end @[28rem]:shrink-0 pl-6 @[28rem]:pl-0 mt-1 @[28rem]:mt-0">
                     <TodoTimer 
                         todo={todo}
                         pluginId={pluginId}
