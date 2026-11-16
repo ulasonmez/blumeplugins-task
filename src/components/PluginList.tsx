@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User } from "firebase/auth";
 import { PluginCard } from "./PluginCard";
 
 import {
@@ -23,7 +22,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 interface PluginListProps {
-    currentUser: User;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: any[];
     isAdmin?: boolean;
@@ -34,7 +32,7 @@ interface PluginListProps {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SortablePluginItem({ plugin, currentUser, isAdmin, isSuperAdmin, canReorder }: { plugin: any, currentUser: User, isAdmin: boolean, isSuperAdmin: boolean, canReorder: boolean }) {
+function SortablePluginItem({ plugin, isAdmin, isSuperAdmin, canReorder, prioritizeThumbnail }: { plugin: any, isAdmin: boolean, isSuperAdmin: boolean, canReorder: boolean, prioritizeThumbnail: boolean }) {
     const {
         attributes,
         listeners,
@@ -59,15 +57,15 @@ function SortablePluginItem({ plugin, currentUser, isAdmin, isSuperAdmin, canReo
         >
             <PluginCard
                 plugin={plugin}
-                currentUser={currentUser}
                 isAdmin={isAdmin}
                 isSuperAdmin={isSuperAdmin}
+                prioritizeThumbnail={prioritizeThumbnail}
             />
         </div>
     );
 }
 
-export function PluginList({ currentUser, plugins, isAdmin = false, isSuperAdmin = false, canReorder = false, onReorder }: PluginListProps) {
+export function PluginList({ plugins, isAdmin = false, isSuperAdmin = false, canReorder = false, onReorder }: PluginListProps) {
     const [isMounted, setIsMounted] = useState(false);
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -122,14 +120,14 @@ export function PluginList({ currentUser, plugins, isAdmin = false, isSuperAdmin
                 strategy={rectSortingStrategy}
             >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {plugins.map((plugin) => (
+                    {plugins.map((plugin, index) => (
                         <SortablePluginItem
                             key={plugin.id}
                             plugin={plugin}
-                            currentUser={currentUser}
                             isAdmin={isAdmin}
                             isSuperAdmin={isSuperAdmin}
                             canReorder={canReorder}
+                            prioritizeThumbnail={index === 0}
                         />
                     ))}
                 </div>

@@ -2,6 +2,14 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-11-16 — İlk açılış yükü azaltıldı
+
+- Plugin kartlarının ilerleme dinleyicileri ekranın yakınına gelince başlıyor. İlk kartın video görseli hemen, diğerlerinin görselleri tarayıcı yaklaşınca isteniyor. Üyelik görünürlüğü ve ilerleme hesabı mevcut akışını kullanıyor.
+- Giriş ekranı Firestore'u yalnızca yeni hesap kaydı gerektiğinde yüklüyor. Storage dosya silme sırasında alınıyor. Kullanılmayan VT323 isteği kaldırıldı ve Geist Mono ön yüklemesi kapatıldı.
+- Dosyalar: `src/app/page.tsx`, `src/app/auth/page.tsx`, `src/app/layout.tsx`, `src/app/globals.css`, `src/components/PluginCard.tsx`, `src/components/PluginList.tsx`, `src/components/PluginFileHandler.tsx`, `src/lib/firebase.ts`, `src/lib/firebaseAuth.ts`, `docs/PROJECT_GUIDE.md`, `docs/CHANGELOG.md`.
+- Doğrulama: üretim derlemesi, TypeScript ve diff kontrolü geçti. Hedefli ESLint eski uyarı ve hataları bildirdi. Yerel Firebase emülatörleri ve Chrome ile giriş/kayıt, eski üyelik, üye olmayan kartın gizlenmesi, kaydırınca ilerlemenin gelmesi, canlı güncelleme, arama ve detay sayfasına geçiş doğrulandı.
+- Yerel karşılaştırmada 30 kartlık listenin ilk ekranında ilerlemesi yüklenen kart sayısı 30'dan 9'a, istenen görsel sayısı 30'dan 21'e düştü. Webpack üretim çıktısında giriş ekranının ilk JavaScript yükü gzip ile yaklaşık %36 azaldı. Canlı Vercel gecikmesi ölçülmedi.
+
 ## 2026-10-22 — Dar görev kartlarında metin yerleşimi
 
 - Görev satırındaki ekran genişliğine bağlı yerleşim, kart genişliğini izleyen container query ile değiştirildi. İçerik alanı 28 rem'den dar olduğunda sayaç ve işlem düğmeleri alt satıra geçer; dar üye panellerinde görev metninin harf harf dikey uzaması önlenir. İşlem grubu gerektiğinde kendi içinde de satır kırar.

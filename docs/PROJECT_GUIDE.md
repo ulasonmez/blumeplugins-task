@@ -1,6 +1,6 @@
 # Blume Plugins — Proje rehberi
 
-Son kaynak incelemesi: 2026-10-03. Bu doküman depo kodundan çıkarılmıştır; canlı Firebase/Vercel yapılandırmasının denetimi değildir. İlgili davranış değiştiğinde ilgili bölüm ve inceleme tarihi güncellenmelidir.
+Son kaynak incelemesi: 2026-11-16. Bu doküman depo kodundan çıkarılmıştır; canlı Firebase/Vercel yapılandırmasının denetimi değildir. İlgili davranış değiştiğinde ilgili bölüm ve inceleme tarihi güncellenmelidir.
 
 ## 1. Amaç ve mimari
 
@@ -11,7 +11,7 @@ Blume Plugins, plugin geliştiren ekiplerin üyelerini, görevlerini, notların�
 - Tailwind CSS 4, Radix tabanlı `src/components/ui/`, Lucide ikonları ve sürükle-bırak için dnd-kit.
 - `next.config.ts` içinde React Compiler açıktır. TypeScript strict modu açıktır; `@/*` alias'ı `src/*` yoluna gider. Bazı mevcut modeller yerel tipler veya `any` ile tutulur.
 - Depoda `package-lock.json` bulunur; komutlarda npm kullanılır. Kesin bağımlılık sürümlerinin kaynağı lock dosyasıdır.
-- `src/lib/firebase.ts`, ortak `app`, `auth`, `db`, `storage` nesnelerini oluşturur; Firestore long polling kullanır. Sunucu JSON route'u da bu modülü kullanır; ayrı bir Firebase Admin SDK katmanı yoktur.
+- `src/lib/firebaseAuth.ts` ortak Firebase uygulamasını ve Auth nesnesini oluşturur. `src/lib/firebase.ts` Firestore'u long polling ile başlatır ve sunucu JSON route'u da bu modülü kullanır. Dosya işlemlerinde Storage, `PluginFileHandler` içinde silme sırasında alınır. Ayrı bir Firebase Admin SDK katmanı yoktur.
 
 ## 2. Konu → dosya haritası
 
@@ -19,7 +19,7 @@ Yollar depo köküne göredir. Önce kullanıcının ifadesine uyan satırı bul
 
 | Kullanıcının bahsettiği konu | İlk incelenecek dosyalar | İlişkili alanlar |
 | --- | --- | --- |
-| Giriş, kayıt, kullanıcı adı, şifre | `src/app/auth/page.tsx` | `src/lib/firebase.ts`, `firestore.rules` → `users` |
+| Giriş, kayıt, kullanıcı adı, şifre | `src/app/auth/page.tsx` | `src/lib/firebaseAuth.ts`, `src/lib/firebase.ts`, `firestore.rules` → `users` |
 | Ana sayfa, plugin ekleme, arama, görünürlük | `src/app/page.tsx` | `plugins`, `members`, `memberUids` |
 | Plugin kartı, video görseli, isim/link düzenleme, plugin silme | `src/components/PluginCard.tsx` | `src/components/PluginList.tsx`, `firestore.rules` |
 | Plugin sıralaması, kart sürükleme | `src/components/PluginList.tsx`, `src/app/page.tsx` → `handleReorder` | `plugins.order` |
@@ -40,7 +40,7 @@ Yollar depo köküne göredir. Önce kullanıcının ifadesine uyan satırı bul
 | YouTuber URL bilgilerinin alınması | `src/app/api/youtuber-info/route.ts` | Depoda bunu çağıran aktif bir UI bulunmadı |
 | Sohbet, plugin dosyaları, eski accordion kart | `src/components/PluginChat.tsx`, `src/components/PluginFileHandler.tsx`, `src/components/PluginCardAccordion.tsx` | Mevcut sayfalara bağlı değiller; aşağıdaki notu oku |
 | Renk, font, mobil görünüm, ortak UI, bildirim | `src/app/globals.css`, `src/app/layout.tsx`, `src/components/ui/`, `src/components/Toaster.tsx` | Bileşenlerdeki Tailwind sınıfları, `src/lib/utils.ts` |
-| Firebase bağlantısı, izin hatası, depolama | `src/lib/firebase.ts`, `firestore.rules`, `storage.rules`, `firebase.json` | İlgili UI sorgusu/yazımı ve ortam değişkenleri |
+| Firebase bağlantısı, izin hatası, depolama | `src/lib/firebaseAuth.ts`, `src/lib/firebase.ts`, `firestore.rules`, `storage.rules`, `firebase.json` | İlgili UI sorgusu/yazımı ve ortam değişkenleri |
 | Build, lint, paketler, alias | `package.json`, `package-lock.json`, `next.config.ts`, `eslint.config.mjs`, `tsconfig.json` | `postcss.config.mjs`, `components.json` |
 
 Arama örnekleri:
@@ -65,7 +65,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 
 ### Kimlik, üyelik ve görünürlük
 
-- Kayıt/giriş, adı küçük harfe çevirip boşlukları noktaya ve Türkçe karakterleri Latin karşılıklarına dönüştürerek `@plugin-tasks.local` uzantılı e-posta üretir. Kayıt, Auth `displayName` alanını ve `users/{uid}` belgesini yazar.
+- Kayıt/giriş, adı küçük harfe çevirip boşlukları noktaya ve Türkçe karakterleri Latin karşılıklarına dönüştürerek `@plugin-tasks.local` uzantılı e-posta üretir. Giriş ekranı Auth ile açılır. Yeni hesap formu gönderildiğinde Firestore yüklenir ve kayıt, Auth `displayName` alanını ve `users/{uid}` belgesini yazar.
 - UI, Auth kullanıcısının `displayName` değerine göre `Ulas` için superadmin, `Ulas`/`Emir` için admin tanımlar. Firestore kuralları ise `users/{uid}.displayName` okur. Yetki sorunlarında iki kaynağı birlikte incele. Kurallar normal kullanıcı yazımlarıyla bu iki özel adı almayı kısıtlar.
 - Ana sayfada superadmin tüm pluginleri, diğer kullanıcılar `memberUids` veya `members/{uid}` ile eşleşen pluginleri görür. Arama 300 ms geciktirilir. Ekleme adminlere, sürükleyerek sıralama superadmin'e sunulur.
 - Detay sayfası üyelik alt koleksiyonunu dinler; superadmin erişimini ayrıca kabul eder. UI'daki owner yetkisi superadmin, üye admin veya `role: owner` için açılır. Üye ekleme/çıkarma hem alt belgeyi hem `memberUids` dizisini günceller. Eski, üyesiz pluginlerde oluşturan kişiyi owner yapmaya yönelik geçiş kodu vardır.
@@ -79,6 +79,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 - Kopyalama yeni, tamamlanmamış görev üretir; eski notları ve süreleri kopyalamaz. Görev notu todo belgesinde, üye notu ayrı `notes/{uid}` belgesindedir. Üye notları kurallarda diğer üyelere de okunabilir; gizli not olarak varsayma.
 - `TodoItem`, tamamlamayı `completeTodoWithTimerCheck`, silmeyi `deleteTodoSafely` üzerinden yapar. Tekrar açma `completed` / `completedAt` alanlarını günceller. Aktif sayaç varken UI görev silmeyi engeller.
 - Kart ve detay sayfasındaki plugin ilerlemesi, görevi olan mevcut üyelerin tamamlanma oranlarının eşit ağırlıklı ortalamasıdır. Tüm görevlerin tek bir tamamlanma oranı değildir. Bu hesap iki yerde bulunduğundan değişiklikte ikisini de incele.
+- Ana sayfada her kart, ekrana 300 piksel yaklaştığında ilerleme için gereken görevleri ve üye listesini dinlemeye başlar. Dinleyiciler kart listeden çıkana kadar canlı kalır. İlk kartın video görseli hemen, diğer kartların görselleri tarayıcının gecikmeli yüklemesiyle istenir.
 - `src/lib/logger.ts`, `plugins/{pluginId}/logs` altına işlem yazar; detay sayfası kayıtları tarihe göre gruplar. Log yazma hataları yakalanır.
 
 ### Süre takibi
@@ -135,7 +136,7 @@ Bu tablo tam bir şema doğrulayıcısı değildir; okuma/yazım noktalarını b
 ### Yerel çalıştırma
 
 1. `npm ci` ile lock dosyasındaki bağımlılıkları kur.
-2. `.env.local` içinde `src/lib/firebase.ts` tarafından kullanılan aşağıdaki değişkenleri ilgili Firebase projesinden sağla. Değerleri Git'e ekleme; `.env*` ignore edilir.
+2. `.env.local` içinde `src/lib/firebaseAuth.ts` tarafından kullanılan aşağıdaki değişkenleri ilgili Firebase projesinden sağla. Değerleri Git'e ekleme; `.env*` ignore edilir.
 3. `npm run dev` ile geliştirme sunucusunu başlat; varsayılan adres `http://localhost:3000`.
 
 Gerekli değişken adları:

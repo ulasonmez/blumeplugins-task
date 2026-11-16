@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { ExternalLink, CheckCircle, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { UserTodoSection } from "./UserTodoSection";
-import { User } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,15 +19,21 @@ interface PluginCardProps {
         description?: string;
         createdByName: string;
     };
-    currentUser: User;
     isAdmin?: boolean;
     isSuperAdmin?: boolean;
+    prioritizeThumbnail?: boolean;
 }
 
-export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin = false }: PluginCardProps) {
+type ProgressTodo = {
+    createdByUid: string;
+    completed: boolean;
+};
+
+export function PluginCard({ plugin, isAdmin = false, isSuperAdmin = false, prioritizeThumbnail = false }: PluginCardProps) {
     const router = useRouter();
-    const [todos, setTodos] = useState<any[]>([]);
-    const [members, setMembers] = useState<any[]>([]);
+    const cardRef = useRef<HTMLDivElement>(null);
+    const [todos, setTodos] = useState<ProgressTodo[]>([]);
+    const [members, setMembers] = useState<{ uid: string }[]>([]);
     
     // Edit Dialog State
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -51,21 +54,40 @@ export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin 
         : null;
 
     useEffect(() => {
-        const q = query(collection(db, "plugins", plugin.id, "todos"), orderBy("createdAt", "asc"));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const todosData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTodos(todosData);
-        });
-        return () => unsubscribe();
-    }, [plugin.id]);
+        const card = cardRef.current;
+        if (!card) return;
 
-    useEffect(() => {
-        const membersQ = query(collection(db, "plugins", plugin.id, "members"));
-        const unsubscribe = onSnapshot(membersQ, (snapshot) => {
-            const membersData = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
-            setMembers(membersData);
-        });
-        return () => unsubscribe();
+        const subscribeToProgress = () => {
+            const todosQuery = query(collection(db, "plugins", plugin.id, "todos"), orderBy("createdAt", "asc"));
+            const unsubscribeTodos = onSnapshot(todosQuery, (snapshot) => {
+                setTodos(snapshot.docs.map(doc => doc.data() as ProgressTodo));
+            });
+            const unsubscribeMembers = onSnapshot(collection(db, "plugins", plugin.id, "members"), (snapshot) => {
+                setMembers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })));
+            });
+            return () => {
+                unsubscribeTodos();
+                unsubscribeMembers();
+            };
+        };
+
+        if (typeof IntersectionObserver === "undefined") {
+            return subscribeToProgress();
+        }
+
+        let unsubscribe: (() => void) | undefined;
+        const observer = new IntersectionObserver((entries) => {
+            if (!entries.some(entry => entry.isIntersecting) || unsubscribe) return;
+            observer.disconnect();
+            unsubscribe = subscribeToProgress();
+        }, { rootMargin: "300px 0px" });
+        observer.observe(card);
+
+        return () => {
+            observer.disconnect();
+            observer.takeRecords();
+            unsubscribe?.();
+        };
     }, [plugin.id]);
 
     const handleEdit = async (e: React.FormEvent) => {
@@ -95,7 +117,7 @@ export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin 
         }
     };
 
-    const memberTodos: Record<string, any[]> = {};
+    const memberTodos: Record<string, ProgressTodo[]> = {};
     members.forEach(m => {
         memberTodos[m.uid] = [];
     });
@@ -131,6 +153,7 @@ export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin 
     return (
         <>
             <div
+                ref={cardRef}
                 className={cn(
                     "group relative cursor-pointer flex flex-col h-full transition-all duration-300 rounded-lg overflow-hidden border border-transparent",
                     isCompleted
@@ -172,6 +195,7 @@ export function PluginCard({ plugin, currentUser, isAdmin = false, isSuperAdmin 
                         <img
                             src={thumbnailUrl}
                             alt={plugin.name}
+                            loading={prioritizeThumbnail ? "eager" : "lazy"}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                     ) : (

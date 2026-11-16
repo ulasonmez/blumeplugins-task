@@ -183,7 +183,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#1e1e24] text-white font-sans overflow-x-hidden">
       {/* Header */}
       <header className="py-8 px-4 flex flex-col items-center gap-6 relative">
-        <h1 className="text-5xl font-minecraft text-[#a8e6cf] tracking-wider drop-shadow-md text-center">
+        <h1 className="text-5xl text-[#a8e6cf] tracking-wider drop-shadow-md text-center">
           Blume Plugins
         </h1>
 
@@ -278,7 +278,6 @@ export default function Home() {
         </div>
 
         <PluginList
-          currentUser={user}
           plugins={filteredPlugins}
           isAdmin={isAdmin}
           isSuperAdmin={isSuperAdmin}

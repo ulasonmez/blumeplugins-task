@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FileDown, Trash2, FileArchive } from "lucide-react";
-import { ref, deleteObject } from "firebase/storage";
+import { ref, deleteObject, getStorage } from "firebase/storage";
 import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
-import { db, storage } from "@/lib/firebase";
+import { app, db } from "@/lib/firebase";
 import { format } from "date-fns";
 import { toast } from "@/components/Toaster";
 
@@ -48,7 +48,7 @@ export function PluginFileHandler({ pluginId, isMember, currentUserId }: PluginF
         if (!confirm("Are you sure you want to delete this file?")) return;
 
         try {
-            const storageRef = ref(storage, file.path);
+            const storageRef = ref(getStorage(app), file.path);
             await deleteObject(storageRef);
             await deleteDoc(doc(db, "plugins", pluginId, "files", file.id));
         } catch (error) {
