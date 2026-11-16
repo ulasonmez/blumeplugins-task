@@ -40,7 +40,7 @@ export default function PluginDetailsPage() {
     const [addMemberError, setAddMemberError] = useState("");
 
     // Time tracking
-    const { activeTimer, elapsedSeconds } = useActiveTimer(user?.uid, id as string);
+    const activeTimer = useActiveTimer(user?.uid, id as string);
     const [isTimeReportOpen, setIsTimeReportOpen] = useState(false);
 
     useEffect(() => {
@@ -565,8 +565,7 @@ export default function PluginDetailsPage() {
                         currentUserId={user.uid}
                         currentUserName={user.displayName || "Anonymous"}
                         videoUrl={plugin.videoUrl}
-                        activeTimer={activeTimer}
-                        elapsedSeconds={elapsedSeconds}
+                        activeTimer={activeTimer?.userId === member.uid ? activeTimer : null}
                     />
                 ))}
             </div>
@@ -583,7 +582,6 @@ export default function PluginDetailsPage() {
                 currentUserId={user.uid}
                 currentUserName={user.displayName || "Anonymous"}
                 activeTimer={activeTimer}
-                elapsedSeconds={elapsedSeconds}
                 currentPluginId={plugin.id}
             />
 

@@ -18,15 +18,17 @@ export async function startTimer(
     todoId: string,
     todoText: string
 ) {
-    await runTransaction(db, async (transaction) => {
+    const started = await runTransaction(db, async (transaction) => {
         const activeTimerRef = doc(db, "activeTimers", `${uid}_${pluginId}`);
         const legacyActiveTimerRef = doc(db, "activeTimers", uid);
         const todoRef = doc(db, "plugins", pluginId, "todos", todoId);
         
         // --- READ PHASE ---
-        const activeTimerDoc = await transaction.get(activeTimerRef);
-        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
-        const todoDoc = await transaction.get(todoRef);
+        const [activeTimerDoc, legacyActiveTimerDoc, todoDoc] = await Promise.all([
+            transaction.get(activeTimerRef),
+            transaction.get(legacyActiveTimerRef),
+            transaction.get(todoRef),
+        ]);
         
         if (!todoDoc.exists()) {
             throw new Error("Task bulunamadı.");
@@ -50,7 +52,7 @@ export async function startTimer(
         if (targetTimerDoc && targetTimerDoc.exists()) {
             const data = targetTimerDoc.data() as ActiveTimer;
             if (data.pluginId === pluginId && data.todoId === todoId) {
-                return; // Idempotent
+                return false;
             }
             
             const nowMs = Timestamp.now().toMillis();
@@ -66,12 +68,11 @@ export async function startTimer(
             }
 
             oldTodoRef = doc(db, "plugins", data.pluginId, "todos", data.todoId);
-            oldTodoDoc = await transaction.get(oldTodoRef);
-            
-            if (oldTodoDoc.exists()) {
-                oldTimeEntryRef = doc(db, "plugins", data.pluginId, "todos", data.todoId, "timeEntries", data.timeEntryId);
-                oldTimeEntryDoc = await transaction.get(oldTimeEntryRef);
-            }
+            oldTimeEntryRef = doc(db, "plugins", data.pluginId, "todos", data.todoId, "timeEntries", data.timeEntryId);
+            [oldTodoDoc, oldTimeEntryDoc] = await Promise.all([
+                transaction.get(oldTodoRef),
+                transaction.get(oldTimeEntryRef),
+            ]);
         }
         
         // --- WRITE PHASE ---
@@ -166,9 +167,12 @@ export async function startTimer(
         if (Object.keys(updates).length > 0) {
             transaction.update(todoRef, updates);
         }
+        return true;
     });
     
-    try { await logPluginAction(pluginId, "started_todo_timer", todoText, uid, userName); } catch(e) { console.error(e); }
+    if (started) {
+        void logPluginAction(pluginId, "started_todo_timer", todoText, uid, userName);
+    }
 }
 
 export async function pauseTimer(uid: string, pluginId?: string) {
@@ -178,8 +182,10 @@ export async function pauseTimer(uid: string, pluginId?: string) {
         const activeTimerRef = pluginId ? doc(db, "activeTimers", `${uid}_${pluginId}`) : null;
         const legacyActiveTimerRef = doc(db, "activeTimers", uid);
 
-        const activeTimerDoc = activeTimerRef ? await transaction.get(activeTimerRef) : null;
-        const legacyActiveTimerDoc = await transaction.get(legacyActiveTimerRef);
+        const [activeTimerDoc, legacyActiveTimerDoc] = await Promise.all([
+            activeTimerRef ? transaction.get(activeTimerRef) : null,
+            transaction.get(legacyActiveTimerRef),
+        ]);
 
         let targetTimerDoc = (activeTimerDoc && activeTimerDoc.exists()) ? activeTimerDoc : null;
         let isLegacy = false;
@@ -198,16 +204,17 @@ export async function pauseTimer(uid: string, pluginId?: string) {
         const activeTimer = targetTimerDoc.data() as ActiveTimer;
         
         const todoRef = doc(db, "plugins", activeTimer.pluginId, "todos", activeTimer.todoId);
-        const todoDoc = await transaction.get(todoRef);
+        const timeEntryRef = doc(db, "plugins", activeTimer.pluginId, "todos", activeTimer.todoId, "timeEntries", activeTimer.timeEntryId);
+        const [todoDoc, timeEntryDoc] = await Promise.all([
+            transaction.get(todoRef),
+            transaction.get(timeEntryRef),
+        ]);
         
         if (!todoDoc.exists()) {
             // Task deleted but timer remained. Just clear timer.
             transaction.delete(isLegacy ? legacyActiveTimerRef : activeTimerRef!);
             throw new Error("Task bulunamadı. Sayaç silindi.");
         }
-
-        const timeEntryRef = doc(db, "plugins", activeTimer.pluginId, "todos", activeTimer.todoId, "timeEntries", activeTimer.timeEntryId);
-        const timeEntryDoc = await transaction.get(timeEntryRef);
 
         const now = Timestamp.now();
         let durationSeconds = 0;
@@ -265,7 +272,7 @@ export async function pauseTimer(uid: string, pluginId?: string) {
     
     if (completedTodoData) {
         const data = completedTodoData as { pluginId: string, todoText: string };
-        try { await logPluginAction(data.pluginId, "paused_todo_timer", data.todoText, uid, "Kullanıcı"); } catch(e) { console.error(e); }
+        void logPluginAction(data.pluginId, "paused_todo_timer", data.todoText, uid, "Kullanıcı");
     }
 }
 

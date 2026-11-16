@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logPluginAction } from "@/lib/logger";
 import { formatSavedDuration } from "@/lib/timeFormatting";
+import { toast } from "@/components/Toaster";
+import { useElapsedSeconds } from "@/hooks/useActiveTimer";
+import type { ActiveTimer } from "@/types/timeTracking";
 import { LinkifiedText } from "@/components/LinkifiedText";
 import {
     DndContext,
@@ -77,13 +80,29 @@ interface UserTodoSectionProps {
     currentUserName?: string;
     videoUrl: string;
     className?: string;
-    activeTimer?: { userId: string; pluginId: string; todoId: string; timeEntryId: string; startedAt: { toMillis: () => number } } | null;
-    elapsedSeconds?: number;
+    activeTimer?: ActiveTimer | null;
 }
 
-export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, currentUserName, videoUrl, className, activeTimer, elapsedSeconds }: UserTodoSectionProps) {
+function TodoSectionTime({ savedSeconds, completedWithoutTime, startedAt }: {
+    savedSeconds: number;
+    completedWithoutTime: number;
+    startedAt?: ActiveTimer["startedAt"];
+}) {
+    const totalSeconds = savedSeconds + useElapsedSeconds(startedAt);
+    if (totalSeconds === 0) return null;
+
+    return (
+        <span className="block text-xs leading-relaxed text-slate-400">
+            ⏱ Toplam: {formatSavedDuration(totalSeconds)}
+            {completedWithoutTime > 0 && ` · Süresiz: ${completedWithoutTime}`}
+        </span>
+    );
+}
+
+export function UserTodoSection({ pluginId, userId, userName, todos, currentUserId, currentUserName, videoUrl, className, activeTimer }: UserTodoSectionProps) {
     const [newTodo, setNewTodo] = useState("");
     const [adding, setAdding] = useState(false);
+    const addInFlight = useRef(false);
 
     // Copy Dialog state
     const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
@@ -174,17 +193,20 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
         activeTimer.userId === userId &&
         activeTimer.pluginId === pluginId
     );
-    const totalTrackedSeconds = items.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0) + (isTimerForThisPluginAndUser ? (elapsedSeconds ?? 0) : 0);
+    const savedSeconds = items.reduce((sum, t) => sum + (t.totalTrackedSeconds ?? 0), 0);
     const completedWithoutTimeCount = items.filter(t => t.completed && (t.totalTrackedSeconds ?? 0) === 0).length;
 
     const handleAddTodo = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newTodo.trim() || !isCurrentUser) return;
+        const text = newTodo.trim();
+        if (!text || !isCurrentUser || addInFlight.current) return;
 
+        addInFlight.current = true;
+        setNewTodo("");
         setAdding(true);
         try {
             await addDoc(collection(db, "plugins", pluginId, "todos"), {
-                text: newTodo.trim(),
+                text,
                 createdByUid: currentUserId,
                 createdByName: userName, // Using prop userName which should match current user if isCurrentUser
                 completed: false,
@@ -194,13 +216,13 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 order: items.length,
             });
             
-            // Log the action
-            await logPluginAction(pluginId, "added_todo", newTodo.trim(), currentUserId, currentUserName || "Anonymous");
-            
-            setNewTodo("");
+            void logPluginAction(pluginId, "added_todo", text, currentUserId, currentUserName || "Anonymous");
         } catch (error) {
             console.error("Error adding todo:", error);
+            setNewTodo((draft) => draft || newTodo);
+            toast(`Görev eklenemedi: "${text}".`);
         } finally {
+            addInFlight.current = false;
             setAdding(false);
         }
     };
@@ -321,12 +343,11 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                 <div className="flex min-w-0 items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <h4 className="break-words font-bold text-xl text-white">{userName}</h4>
-                        {totalTrackedSeconds > 0 && (
-                            <span className="block text-xs leading-relaxed text-slate-400">
-                                ⏱ Toplam: {formatSavedDuration(totalTrackedSeconds)}
-                                {completedWithoutTimeCount > 0 && ` · Süresiz: ${completedWithoutTimeCount}`}
-                            </span>
-                        )}
+                        <TodoSectionTime
+                            savedSeconds={savedSeconds}
+                            completedWithoutTime={completedWithoutTimeCount}
+                            startedAt={isTimerForThisPluginAndUser ? activeTimer?.startedAt : undefined}
+                        />
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                         <Badge variant="secondary" className="bg-[#2d936c] text-white hover:bg-[#237a58]">
@@ -604,7 +625,6 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                             videoUrl={videoUrl}
                                             onOpenNotes={handleOpenTodoNotes}
                                             activeTimer={activeTimer}
-                                            elapsedSeconds={elapsedSeconds}
                                         />
                                     ))}
                                     {items.length === 0 && (
@@ -625,7 +645,6 @@ export function UserTodoSection({ pluginId, userId, userName, todos, currentUser
                                     videoUrl={videoUrl}
                                     onOpenNotes={handleOpenTodoNotes}
                                     activeTimer={activeTimer}
-                                    elapsedSeconds={elapsedSeconds}
                                 />
                             ))}
                             {items.length === 0 && (

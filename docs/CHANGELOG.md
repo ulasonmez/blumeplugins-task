@@ -2,6 +2,14 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-11-16 — Sayaç ve görev ekleme tepkisi
+
+- Sayaç başlatma, duraklatma ve görev değiştirmede bağımsız Firestore okumaları paralelleştirildi. Görevdeki sayaç düğmesi tıklama anında geri bildirim verir. Saniye güncellemeleri süreyi gösteren bileşenlerle sınırlı ve eski sayaç belgesi de canlı izleniyor.
+- Görev ekleme alanı gönderim anında temizlenir ve yazım sürerken tekrar Enter yeni kayıt açmaz. Yazım hatasında alan boşsa taslak geri gelir. Görev ve sayaç işlemleri geçmiş kaydının tamamlanmasını beklemez.
+- Dosyalar: `src/app/plugin/[id]/page.tsx`, `src/components/ActiveTimerBar.tsx`, `src/components/TodoItem.tsx`, `src/components/TodoTimer.tsx`, `src/components/UserTodoSection.tsx`, `src/hooks/useActiveTimer.ts`, `src/lib/timeTracking.ts`, `docs/PROJECT_GUIDE.md`, `docs/CHANGELOG.md`.
+- Üretim derlemesi, TypeScript ve diff kontrolü geçti. Hedefli ESLint mevcut hataları bildirdi. Chrome ve yerel Firestore ile art arda Enter'ın tek görev oluşturduğu, reddedilen yazımda taslağın geri geldiği ve sayaç başlatma geri bildiriminin hemen gösterildiği doğrulandı. Her okumaya 750 ms gecikme eklendiğinde üç ilk okuma paralel başladı ve sayaç yaklaşık 0,82 saniyede onaylandı.
+- Yerel Firestore emülatöründe aynı görev için eşzamanlı başlatma, görev değiştirme, tamamlama, manuel süre ekleme ve silme, eski sayaç kurtarma ve kayıt toplamları kontrol edildi. Canlı bağlantı süresi ölçülmedi.
+
 ## 2026-11-16 — İlk açılış yükü azaltıldı
 
 - Plugin kartlarının ilerleme dinleyicileri ekranın yakınına gelince başlıyor. İlk kartın video görseli hemen, diğerlerinin görselleri tarayıcı yaklaşınca isteniyor. Üyelik görünürlüğü ve ilerleme hesabı mevcut akışını kullanıyor.

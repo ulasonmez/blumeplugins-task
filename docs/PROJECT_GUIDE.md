@@ -74,6 +74,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 ### Görev ve ilerleme
 
 - Detay sayfası görevleri `createdByUid` ile mevcut üyelerin panellerine dağıtır. `UserTodoSection` görev ekler, başka üyelerin görev metinlerini kullanıcının kendi listesine kopyalar, sıralar ve notları yönetir.
+- Yeni görev gönderildiğinde giriş alanı hemen temizlenir. Aynı paneldeki Firestore yazımı sürerken yeniden gönderim engellenir. Yazım reddedilirse hata gösterilir ve alan boşsa gönderilen taslak geri gelir.
 - Mobil plugin detayında başlık ve araçlar ayrı satırlara yerleşir; üye panelleri içerikleri kadar uzar ve sayfa tek bir akışta kayar. `md` ve üzerindeki sütunlu görünümde panel listesi ile görev listeleri kendi alanlarında kayar. Mobil süre raporu değerleri satır kırar ve rapor penceresi dikey kayar.
 - Görev satırları ekran yerine kendi kart genişliğine göre düzenlenir (`TodoItem` container query). Kartın içerik alanı 28 rem'den darsa sayaç ve işlem düğmeleri metnin altına geçer; böylece masaüstündeki dar üye panellerinde de metin harf harf sıkışmaz.
 - Kopyalama yeni, tamamlanmamış görev üretir; eski notları ve süreleri kopyalamaz. Görev notu todo belgesinde, üye notu ayrı `notes/{uid}` belgesindedir. Üye notları kurallarda diğer üyelere de okunabilir; gizli not olarak varsayma.
@@ -87,9 +88,10 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 - Merkez: `src/lib/timeTracking.ts`; `startTimer`, `pauseTimer`, `stopAndAddManualTime`, `addManualTime`, `completeTodoWithTimerCheck`, `deleteTimeEntry`, `deleteTodoSafely`.
 - Aktif sayaç anahtarı `activeTimers/{uid}_{pluginId}`: kullanıcı başına **plugin içinde** tek aktif sayaç. Farklı pluginlerde ayrı sayaçlar olabilir. Eski `activeTimers/{uid}` belgeleri ilgili plugin eşleşmesiyle desteklenir; bu uyumluluğu yanlışlıkla kaldırma.
 - `startTimer` yalnızca görev sahibinin sayacını başlatır. Aynı görevde tekrar başlatma etkisizdir. Aynı plugin içinde görev değiştirildiğinde mevcut süre kapanıp yeni kayıt açılır; işlemler Firestore transaction kullanır.
+- Başlatma ve duraklatmada bağımsız transaction okumaları paralel yapılır. Görev satırındaki sayaç düğmesi işlem başladığında bekleme durumunu gösterir. İşlem geçmişi kaydı, ana yazımın onayından sonra arka planda gönderilir.
 - Başka göreve geçişte mevcut sayaç 8 saatten eskiyse veya yerel takvim günü değişmişse servis kurtarma gerektiren hata üretir. `ActiveTimerBar` otomatik kurtarma penceresini 8 saat eşiğinde açar; iki koşul aynı değildir.
 - Kurtarma penceresindeki üç seçenek açık metin ve koyu zemin kullanır; seçili durumlar renkli zeminle ayrılır, uzun seçenek metinleri dar ekranlarda satır kırar.
-- `useActiveTimer`, Firestore başlangıç zamanından geçen süreyi her saniye hesaplar; her saniye Firestore'a yazmaz. Eski belge için fallback okuması vardır.
+- `useActiveTimer` önce plugin kapsamındaki sayaç belgesini dinler. Bu belge yoksa eski kullanıcı belgesini dinler ve yalnızca plugin eşleştiğinde kullanır. `useElapsedSeconds` saniye güncellemesini aktif görev satırının sayaç alanı, üye panelindeki süre özeti ve alttaki sayaç çubuğuyla sınırlar. Saniye güncellemeleri Firestore'a yazılmaz.
 - Kayıt tipleri `timer`, `manual`, `recovery`; durumlar `running`, `completed`. Tamamlanan kayıtlar todo üzerindeki `timerTrackedSeconds`, `manualTrackedSeconds`, `totalTrackedSeconds`, `timeEntryCount`, `lastTrackedAt` özetlerini etkiler. `recovery`, sayaç toplamına dahildir. Toplamlar ile detay kayıtları birlikte ele alınmalıdır.
 - `baseTrackedSeconds` çalışan sayaç başladığındaki kaydedilmiş toplamı saklar. Canlı süreyi eklerken kullanıcı/plugin/görev kapsamını kontrol et; kaydedilmiş süreyi iki kere toplama.
 - `TimeDetailsDialog` kayıt geçmişini dinler; manuel ekleme/silme sunar. Geliştirme modunda detay kayıtlarıyla özetler uyuşmadığında konsola uyarı yazar.

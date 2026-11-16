@@ -5,16 +5,16 @@ import { formatRunningDuration } from "@/lib/timeFormatting";
 import { pauseTimer, completeTodoWithTimerCheck, stopAndAddManualTime } from "@/lib/timeTracking";
 import { Button } from "@/components/ui/button";
 import { Pause, CheckCircle2, ChevronRight, AlertTriangle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/Toaster";
+import { useElapsedSeconds } from "@/hooks/useActiveTimer";
+import type { ActiveTimer } from "@/types/timeTracking";
 
 interface ActiveTimerBarProps {
     currentUserId: string;
     currentUserName: string;
-    activeTimer: any;
-    elapsedSeconds: number;
+    activeTimer: ActiveTimer | null;
     currentPluginId: string;
 }
 
@@ -22,10 +22,8 @@ export function ActiveTimerBar({
     currentUserId,
     currentUserName,
     activeTimer,
-    elapsedSeconds,
     currentPluginId
 }: ActiveTimerBarProps) {
-    const router = useRouter();
     const [actionLoading, setActionLoading] = useState(false);
     const [recoveryOpen, setRecoveryOpen] = useState(false);
     
@@ -34,6 +32,7 @@ export function ActiveTimerBar({
     const [customDate, setCustomDate] = useState("");
     const [customTime, setCustomTime] = useState("");
 
+    const elapsedSeconds = useElapsedSeconds(activeTimer?.pluginId === currentPluginId ? activeTimer.startedAt : undefined);
     const isLongTimer = elapsedSeconds > 8 * 3600; // > 8 hours
 
     useEffect(() => {

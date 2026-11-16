@@ -1,98 +1,65 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { doc, onSnapshot, Timestamp } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import { doc, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ActiveTimer } from "@/types/timeTracking";
+import type { ActiveTimer } from "@/types/timeTracking";
 
-interface UseActiveTimerResult {
-    activeTimer: (ActiveTimer & { id: string }) | null;
-    elapsedSeconds: number;
-    isLoading: boolean;
-}
-
-export function useActiveTimer(uid: string | undefined, pluginId?: string): UseActiveTimerResult {
-    const [activeTimer, setActiveTimer] = useState<(ActiveTimer & { id: string }) | null>(null);
-    const [elapsedSeconds, setElapsedSeconds] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
+export function useActiveTimer(uid: string | undefined, pluginId: string): ActiveTimer | null {
+    const [result, setResult] = useState<{ uid: string; pluginId: string; timer: ActiveTimer | null } | null>(null);
 
     useEffect(() => {
-        if (!uid) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setActiveTimer(null);
-            setElapsedSeconds(0);
-            setIsLoading(false);
-            return;
-        }
+        if (!uid || !pluginId) return;
 
-        const timerDocId = pluginId ? `${uid}_${pluginId}` : uid;
-        const timerRef = doc(db, "activeTimers", timerDocId);
+        const timerRef = doc(db, "activeTimers", `${uid}_${pluginId}`);
+        const legacyTimerRef = doc(db, "activeTimers", uid);
+        let unsubscribeLegacy: (() => void) | undefined;
 
-        const unsubscribe = onSnapshot(
-            timerRef,
-            (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data() as ActiveTimer;
-                    setActiveTimer({ id: docSnap.id, ...data });
-                    setIsLoading(false);
-                } else if (pluginId) {
-                    // Check legacy doc keyed by uid for backward compatibility
-                    docSnap.ref.firestore ? 
-                        import("firebase/firestore").then(({ getDoc, doc }) => {
-                            getDoc(doc(db, "activeTimers", uid)).then((legacySnap) => {
-                                if (legacySnap.exists()) {
-                                    const legacyData = legacySnap.data() as ActiveTimer;
-                                    if (legacyData.pluginId === pluginId) {
-                                        setActiveTimer({ id: legacySnap.id, ...legacyData });
-                                    } else {
-                                        setActiveTimer(null);
-                                        setElapsedSeconds(0);
-                                    }
-                                } else {
-                                    setActiveTimer(null);
-                                    setElapsedSeconds(0);
-                                }
-                                setIsLoading(false);
-                            }).catch(() => {
-                                setActiveTimer(null);
-                                setElapsedSeconds(0);
-                                setIsLoading(false);
-                            });
-                        }) : null;
-                } else {
-                    setActiveTimer(null);
-                    setElapsedSeconds(0);
-                    setIsLoading(false);
-                }
-            },
-            (error) => {
-                console.error("Error listening to active timer:", error);
-                setIsLoading(false);
+        const unsubscribe = onSnapshot(timerRef, (snapshot) => {
+            if (snapshot.exists()) {
+                unsubscribeLegacy?.();
+                unsubscribeLegacy = undefined;
+                setResult({ uid, pluginId, timer: snapshot.data() as ActiveTimer });
+                return;
             }
-        );
+            if (unsubscribeLegacy) return;
 
-        return () => unsubscribe();
+            setResult({ uid, pluginId, timer: null });
+            unsubscribeLegacy = onSnapshot(legacyTimerRef, (legacySnapshot) => {
+                const legacy = legacySnapshot.data() as ActiveTimer | undefined;
+                setResult({ uid, pluginId, timer: legacy?.pluginId === pluginId ? legacy : null });
+            }, (error) => {
+                console.error("Error listening to legacy active timer:", error);
+            });
+        }, (error) => {
+            unsubscribeLegacy?.();
+            setResult({ uid, pluginId, timer: null });
+            console.error("Error listening to active timer:", error);
+        });
+
+        return () => {
+            unsubscribe();
+            unsubscribeLegacy?.();
+        };
     }, [uid, pluginId]);
 
+    return result?.uid === uid && result?.pluginId === pluginId ? result.timer : null;
+}
+
+export function useElapsedSeconds(startedAt: Pick<Timestamp, "toMillis"> | undefined): number {
+    const startMillis = startedAt?.toMillis();
+    const [clock, setClock] = useState<{ startMillis: number; seconds: number } | null>(null);
+
     useEffect(() => {
-        if (!activeTimer?.startedAt) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setElapsedSeconds(0);
-            return;
-        }
+        if (startMillis === undefined) return;
 
-        const calculateElapsed = () => {
-            const now = Date.now();
-            const startedAt = activeTimer.startedAt.toMillis();
-            const elapsed = Math.max(0, Math.floor((now - startedAt) / 1000));
-            setElapsedSeconds(elapsed);
+        const tick = () => {
+            setClock({ startMillis, seconds: Math.max(0, Math.floor((Date.now() - startMillis) / 1000)) });
         };
+        tick();
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+    }, [startMillis]);
 
-        calculateElapsed();
-        const intervalId = setInterval(calculateElapsed, 1000);
-
-        return () => clearInterval(intervalId);
-    }, [activeTimer]);
-
-    return { activeTimer, elapsedSeconds, isLoading };
+    return clock && clock.startMillis === startMillis ? clock.seconds : 0;
 }

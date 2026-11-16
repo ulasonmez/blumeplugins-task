@@ -34,10 +34,9 @@ interface TodoItemProps {
     videoUrl: string;
     onOpenNotes: (todo: { id: string; notes?: string }) => void;
     activeTimer?: { userId: string; pluginId: string; todoId: string; timeEntryId: string; startedAt: { toMillis: () => number } } | null;
-    elapsedSeconds?: number;
 }
 
-export function TodoItem({ pluginId, todo, currentUserId, currentUserName, videoUrl, onOpenNotes, activeTimer, elapsedSeconds }: TodoItemProps) {
+export function TodoItem({ pluginId, todo, currentUserId, currentUserName, videoUrl, onOpenNotes, activeTimer }: TodoItemProps) {
     const isOwner = todo.createdByUid === currentUserId;
     const [toggling, setToggling] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -332,7 +331,6 @@ export function TodoItem({ pluginId, todo, currentUserId, currentUserName, video
                         currentUserId={currentUserId}
                         currentUserName={currentUserName || "Anonymous"}
                         activeTimer={activeTimer || null}
-                        elapsedSeconds={elapsedSeconds || 0}
                         isOwner={isOwner}
                     />
 

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Clock } from "lucide-react";
+import { Play, Pause, Clock, LoaderCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { startTimer, pauseTimer, addManualTime } from "@/lib/timeTracking";
 import { formatSavedDuration, formatRunningDuration } from "@/lib/timeFormatting";
 import { TimeDetailsDialog } from "./TimeDetailsDialog";
 import { toast } from "@/components/Toaster";
+import { useElapsedSeconds } from "@/hooks/useActiveTimer";
 
 interface TodoTimerProps {
     todo: {
@@ -24,7 +25,6 @@ interface TodoTimerProps {
     currentUserId: string;
     currentUserName: string;
     activeTimer: { userId: string; pluginId: string; todoId: string; timeEntryId: string; startedAt: { toMillis: () => number } } | null;
-    elapsedSeconds: number;
     isOwner: boolean;
 }
 
@@ -35,15 +35,20 @@ export function TodoTimer({
     currentUserId,
     currentUserName,
     activeTimer,
-    elapsedSeconds,
     isOwner
 }: TodoTimerProps) {
     const [actionLoading, setActionLoading] = useState(false);
+    const [timerAction, setTimerAction] = useState<"starting" | "pausing" | null>(null);
+    const timerInFlight = useRef(false);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [detailsInitialView, setDetailsInitialView] = useState<"history" | "add-manual">("history");
     const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
     const isThisTimerActive = activeTimer && activeTimer.pluginId === pluginId && activeTimer.todoId === todo.id;
+    const elapsedSeconds = useElapsedSeconds(isThisTimerActive ? activeTimer.startedAt : undefined);
+    const timerActionLabel = timerAction === "starting" ? "Başlatılıyor…"
+        : timerAction === "pausing" ? "Duraklatılıyor…"
+        : isThisTimerActive ? "Duraklat" : "Başlat";
     
     // When timer is active, elapsedSeconds represents the current session.
     // We add it to the persisted total.
@@ -54,8 +59,9 @@ export function TodoTimer({
     const hasTime = displayedTaskTotalSeconds > 0;
 
     const handleToggleTimer = async () => {
-        if (!isOwner || actionLoading) return;
-        setActionLoading(true);
+        if (!isOwner || timerInFlight.current) return;
+        timerInFlight.current = true;
+        setTimerAction(isThisTimerActive ? "pausing" : "starting");
 
         try {
             if (isThisTimerActive) {
@@ -74,7 +80,8 @@ export function TodoTimer({
              const msg = error instanceof Error ? error.message : "Bir hata oluştu.";
              toast(msg);
         } finally {
-            setActionLoading(false);
+            timerInFlight.current = false;
+            setTimerAction(null);
         }
     };
 
@@ -153,10 +160,12 @@ export function TodoTimer({
                         isThisTimerActive ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30 hover:text-amber-400" : "bg-slate-700/50 text-slate-300 hover:bg-[#2d936c]/20 hover:text-[#2d936c]"
                     )}
                     onClick={handleToggleTimer}
-                    disabled={actionLoading}
-                    title={isThisTimerActive ? "Duraklat" : "Başlat"}
+                    disabled={timerAction !== null}
+                    aria-busy={timerAction !== null}
+                    title={timerActionLabel}
+                    aria-label={timerActionLabel}
                 >
-                    {isThisTimerActive ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
+                    {timerAction ? <LoaderCircle className="w-3 h-3 animate-spin" /> : isThisTimerActive ? <Pause className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current ml-0.5" />}
                 </Button>
             )}
             
