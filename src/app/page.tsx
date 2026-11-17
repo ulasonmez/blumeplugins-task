@@ -188,7 +188,7 @@ export default function Home() {
         </h1>
 
         {/* User Profile - Responsive */}
-        <div className="flex items-center gap-4 mt-2 lg:absolute lg:top-8 lg:right-8 lg:mt-0">
+        <div className="flex items-center gap-4 mt-2 flex-wrap justify-center 2xl:absolute 2xl:top-8 2xl:right-8 2xl:mt-0">
 
           {isAdmin && <SharedNotepad />}
           {isAdmin && (

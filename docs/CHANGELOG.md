@@ -2,6 +2,10 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-11-17 — Potansiyel videolar: başlık ve üst bar düzeni
+
+- Kartlarda video başlığı gösterilir (eklerken ve eski kayıtlar için sayfa açılınca `noembed.com` ile çekilip `title` alanına yazılır; alınamazsa host). Ana sayfada sağ üst menü yalnızca `2xl` ekranda mutlak konumlanır, daha dar ekranlarda başlığın altında satır kırar; böylece başlıkla çakışma giderildi. Dosyalar: `src/app/page.tsx`, `src/app/potential-videos/page.tsx`.
+
 ## 2026-11-17 — Potansiyel videolar sayfası
 
 - Ana sayfaya (yalnızca superadmin için) `Potansiyel Videolar` bağlantısı ve `/potential-videos` sayfası eklendi: yalnızca link ile video eklenir, YouTube küçük resimli grid, dnd-kit ile sürükleyip sıralama (`order`), karta tıklayınca video yeni sekmede açılır, silme. Veri `potentialVideos` koleksiyonundadır; `firestore.rules` okuma/yazmayı yalnızca superadmin'e verir.

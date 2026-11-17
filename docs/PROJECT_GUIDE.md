@@ -129,7 +129,7 @@ Bu tablo tam bir şema doğrulayıcısı değildir; okuma/yazım noktalarını b
 | `plugins/{pluginId}/notes/{uid}` | `content`, `updatedAt` | Üye notları |
 | `plugins/{pluginId}/logs/{logId}` | `action`, `details`, `uid`, `userName`, `timestamp` | `logPluginAction` |
 | `system/shared_notepad` | `content`, `lastUpdated` | Ortak not defteri |
-| `potentialVideos/{id}` | `url`, `order`, `createdAt`; yalnızca superadmin okur/yazar | Potansiyel videolar sayfası |
+| `potentialVideos/{id}` | `url`, `title` (noembed.com'dan istemci çeker; yoksa host gösterilir), `order`, `createdAt`; yalnızca superadmin okur/yazar | Potansiyel videolar sayfası |
 | `roleplayMods/{modId}` | `title`, `videoUrl`, `version`, `badge`, `order` | Roleplay yönetimi ve JSON route'u |
 | `plugins/{pluginId}/messages/{messageId}` | Sohbet mesajları | Şu an bağlı olmayan `PluginChat` |
 | `plugins/{pluginId}/files/{fileId}` | Dosya metaverisi ve Storage yolu | Şu an bağlı olmayan `PluginFileHandler` |

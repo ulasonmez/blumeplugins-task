@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, writeBatch } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import {
     DndContext,
     closestCenter,
@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 type PotentialVideo = {
     id: string;
     url: string;
+    title?: string;
     order?: number;
     createdAt?: { toMillis?: () => number };
 };
@@ -44,6 +45,17 @@ const getHost = (url: string) => {
         return new URL(url).hostname.replace(/^www\./, "");
     } catch {
         return url;
+    }
+};
+
+const fetchTitle = async (url: string): Promise<string | null> => {
+    try {
+        const res = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        return typeof data.title === "string" && data.title ? data.title : null;
+    } catch {
+        return null;
     }
 };
 
@@ -84,7 +96,7 @@ function VideoCard({ video, onDelete }: { video: PotentialVideo; onDelete: (vide
                 )}
             </div>
             <div className="p-3 bg-[#3c8558] group-hover:bg-[#34754d] transition-colors text-center">
-                <p className="text-white text-sm font-medium truncate">{getHost(video.url)}</p>
+                <p className="text-white text-sm font-medium line-clamp-2" title={video.title || video.url}>{video.title || getHost(video.url)}</p>
             </div>
         </div>
     );
@@ -136,6 +148,17 @@ export default function PotentialVideosPage() {
         return () => unsub();
     }, [user, isSuperAdmin, router]);
 
+    // Başlığı olmayan (eski) videolar için başlığı bir kez çekip kaydet
+    const [triedTitles] = useState(() => new Set<string>());
+    useEffect(() => {
+        if (!isSuperAdmin) return;
+        videos.filter((v) => !v.title && !triedTitles.has(v.id)).forEach(async (v) => {
+            triedTitles.add(v.id);
+            const title = await fetchTitle(v.url);
+            if (title) updateDoc(doc(db, "potentialVideos", v.id), { title }).catch(() => {});
+        });
+    }, [videos, isSuperAdmin, triedTitles]);
+
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!url.trim() || submitting) return;
@@ -146,8 +169,10 @@ export default function PotentialVideosPage() {
             new URL(normalized);
             // Yeni video listenin başına gelsin
             const minOrder = videos.reduce((min, v) => Math.min(min, v.order ?? 0), 0);
+            const title = await fetchTitle(normalized);
             await addDoc(collection(db, "potentialVideos"), {
                 url: normalized,
+                ...(title ? { title } : {}),
                 order: minOrder - 1,
                 createdAt: serverTimestamp(),
             });
