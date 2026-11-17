@@ -2,6 +2,12 @@
 
 Yeni kayıtları en üste ekle. Her kayıt tarih, değişiklik/gerekçe, ilgili dosyalar, doğrulama ve varsa kalan sınırlamayı içermelidir. Yapılmamış işleri tamamlanmış gibi yazma; güncel mimariyi `PROJECT_GUIDE.md` içinde tut.
 
+## 2026-11-17 — Potansiyel videolar sayfası
+
+- Ana sayfaya (yalnızca superadmin için) `Potansiyel Videolar` bağlantısı ve `/potential-videos` sayfası eklendi: yalnızca link ile video eklenir, YouTube küçük resimli grid, dnd-kit ile sürükleyip sıralama (`order`), karta tıklayınca video yeni sekmede açılır, silme. Veri `potentialVideos` koleksiyonundadır; `firestore.rules` okuma/yazmayı yalnızca superadmin'e verir.
+- Dosyalar: `src/app/potential-videos/page.tsx`, `src/app/page.tsx`, `firestore.rules`, `docs/PROJECT_GUIDE.md`, `docs/CHANGELOG.md`.
+- Doğrulama: `tsc --noEmit`, ESLint (yeni sayfa), `npm run build` ve `git diff --check` geçti. Sınır: Firestore kuralları git push ile yayınlanmaz, ayrıca deploy edilmelidir; canlı oturumla elle test yapılmadı.
+
 ## 2026-11-16 — Sayaç ve görev ekleme tepkisi
 
 - Sayaç başlatma, duraklatma ve görev değiştirmede bağımsız Firestore okumaları paralelleştirildi. Görevdeki sayaç düğmesi tıklama anında geri bildirim verir. Saniye güncellemeleri süreyi gösteren bileşenlerle sınırlı ve eski sayaç belgesi de canlı izleniyor.

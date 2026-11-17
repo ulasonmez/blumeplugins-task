@@ -37,6 +37,7 @@ Yollar depo köküne göredir. Önce kullanıcının ifadesine uyan satırı bul
 | Link, Markdown benzeri metin, görsel, tablo gösterimi | `src/components/LinkifiedText.tsx` | Görev/üye notları ve ortak not defteri; özel ayrıştırıcı |
 | Roleplay Mods ekle/düzenle/sil/sırala | `src/app/roleplay-mods/page.tsx` | `roleplayMods`, `src/app/actions/roleplayMods.ts` |
 | Roleplay JSON, dış liste, cache yenileme | `src/app/roleplay-mods.json/route.ts` | `src/app/actions/roleplayMods.ts`, yönetim sayfası |
+| Potansiyel videolar (yalnızca superadmin) | `src/app/potential-videos/page.tsx` | `potentialVideos`, `firestore.rules`, `src/app/page.tsx` bağlantısı |
 | YouTuber URL bilgilerinin alınması | `src/app/api/youtuber-info/route.ts` | Depoda bunu çağıran aktif bir UI bulunmadı |
 | Sohbet, plugin dosyaları, eski accordion kart | `src/components/PluginChat.tsx`, `src/components/PluginFileHandler.tsx`, `src/components/PluginCardAccordion.tsx` | Mevcut sayfalara bağlı değiller; aşağıdaki notu oku |
 | Renk, font, mobil görünüm, ortak UI, bildirim | `src/app/globals.css`, `src/app/layout.tsx`, `src/components/ui/`, `src/components/Toaster.tsx` | Bileşenlerdeki Tailwind sınıfları, `src/lib/utils.ts` |
@@ -59,6 +60,7 @@ rg -n 'PluginChat|PluginFileHandler|PluginCardAccordion' src
 | `/auth` | `src/app/auth/page.tsx` | Kullanıcı adı/şifre ile giriş ve kayıt |
 | `/` | `src/app/page.tsx` | Oturum kontrolü, plugin listesi, arama, ekleme ve sıralama |
 | `/plugin/[id]` | `src/app/plugin/[id]/page.tsx` | Üyelik kontrolü, üye görev panelleri, tarihler, loglar, süre raporu ve aktif sayaç; mobilde sayfa boyunca, masaüstünde panel listesinde kaydırma |
+| `/potential-videos` | `src/app/potential-videos/page.tsx` | Yalnızca superadmin: link ekleme, grid, sürükleyerek sıralama, tıklayınca videoyu yeni sekmede açma, silme. Diğer kullanıcılar `/` adresine yönlendirilir |
 | `/roleplay-mods` | `src/app/roleplay-mods/page.tsx` | Admin video listesi yönetimi |
 | `/roleplay-mods.json` | `src/app/roleplay-mods.json/route.ts` | Herkese açık `GET`; sıralı `{ videos: [...] }` çıktısı |
 | `/api/youtuber-info` | `src/app/api/youtuber-info/route.ts` | `POST { urls: [...] }`; URL'lerden HTML okuyup kanal bilgisi çıkartır |
@@ -127,6 +129,7 @@ Bu tablo tam bir şema doğrulayıcısı değildir; okuma/yazım noktalarını b
 | `plugins/{pluginId}/notes/{uid}` | `content`, `updatedAt` | Üye notları |
 | `plugins/{pluginId}/logs/{logId}` | `action`, `details`, `uid`, `userName`, `timestamp` | `logPluginAction` |
 | `system/shared_notepad` | `content`, `lastUpdated` | Ortak not defteri |
+| `potentialVideos/{id}` | `url`, `order`, `createdAt`; yalnızca superadmin okur/yazar | Potansiyel videolar sayfası |
 | `roleplayMods/{modId}` | `title`, `videoUrl`, `version`, `badge`, `order` | Roleplay yönetimi ve JSON route'u |
 | `plugins/{pluginId}/messages/{messageId}` | Sohbet mesajları | Şu an bağlı olmayan `PluginChat` |
 | `plugins/{pluginId}/files/{fileId}` | Dosya metaverisi ve Storage yolu | Şu an bağlı olmayan `PluginFileHandler` |

@@ -196,6 +196,11 @@ export default function Home() {
               Roleplay Mods
             </Link>
           )}
+          {isSuperAdmin && (
+            <Link href="/potential-videos" className="text-slate-400 hover:text-[#a8e6cf] transition-colors font-medium text-sm lg:text-base whitespace-nowrap">
+              Potansiyel Videolar
+            </Link>
+          )}
           <div className="flex items-center gap-2">
             <span className="text-xl lg:text-2xl font-bold text-white">{user.displayName}</span>
             {isSuperAdmin && (
